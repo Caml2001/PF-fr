@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
+  --background: 220 33% 98%;
   --foreground: 222 47% 11%;
   --muted: 210 40% 96%;
   --muted-foreground: 215.4 16.3% 46.9%;
@@ -20,12 +20,48 @@
   --primary-800: 224 76% 30%;
   --secondary: 210 40% 96.1%;
   --secondary-foreground: 222.2 47.4% 11.2%;
-  --accent: 210 40% 96.1%;
+  --accent: 221 83% 97%;
   --accent-foreground: 222.2 47.4% 11.2%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
   --ring: 215 20.2% 65.1%;
-  --radius: 0.5rem;
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  /* Estilos para simular una app móvil */
+  .mobile-container {
+    @apply mx-auto max-w-md bg-background min-h-[100svh] flex flex-col relative overflow-hidden;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.1);
+  }
+
+  .mobile-header {
+    @apply sticky top-0 z-10 bg-white py-4 px-4 shadow-sm;
+  }
+
+  .mobile-content {
+    @apply flex-1 px-4 py-3 overflow-auto;
+  }
+
+  .mobile-card {
+    @apply rounded-xl bg-white shadow-md border-0;
+  }
+
+  .mobile-button {
+    @apply rounded-full shadow-sm font-medium;
+  }
+
+  .mobile-input {
+    @apply rounded-xl border-input py-3;
+  }
 }
   .dark {
       --background: 240 10% 3.9%;

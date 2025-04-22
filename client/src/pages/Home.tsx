@@ -47,15 +47,19 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-background min-h-screen">
-      <div className="container mx-auto px-4 py-8 max-w-md">
-        <Header />
+    <div className="bg-accent min-h-screen py-4 md:py-8">
+      <div className="mobile-container">
+        <div className="mobile-header">
+          <Header />
+        </div>
         
-        <main>
+        <main className="mobile-content">
           {renderContent()}
         </main>
         
-        <Footer />
+        <div className="px-4 py-3 bg-white mt-auto border-t border-border/30">
+          <Footer />
+        </div>
       </div>
     </div>
   );
