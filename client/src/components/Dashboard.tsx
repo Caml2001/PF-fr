@@ -6,9 +6,10 @@ import { CreditCardIcon, DollarSignIcon, ArrowRightIcon, BadgeCheckIcon, ShieldC
 interface DashboardProps {
   username: string;
   onLogout: () => void;
+  onApplyCredit: () => void;
 }
 
-export default function Dashboard({ username, onLogout }: DashboardProps) {
+export default function Dashboard({ username, onLogout, onApplyCredit }: DashboardProps) {
   // Monto preaprobado fijo (como solicitado)
   const preapprovedAmount = 5000;
   
@@ -56,6 +57,7 @@ export default function Dashboard({ username, onLogout }: DashboardProps) {
         <div className="px-6 py-5 -mt-10 relative">
           <Button 
             className="w-full h-12 mobile-button shadow-lg mb-4 bg-white text-primary hover:bg-white/90 hover:text-primary border-0"
+            onClick={onApplyCredit}
           >
             Solicitar ahora <ArrowRightIcon className="h-4 w-4 ml-2" />
           </Button>
