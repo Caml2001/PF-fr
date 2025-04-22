@@ -268,7 +268,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
             <div className="border-2 border-dashed border-primary/20 rounded-xl p-6 text-center">
               <div className="flex justify-center mb-3">
                 <div className="bg-primary/10 rounded-full p-3">
-                  <FileInput className="h-6 w-6 text-primary" />
+                  <FileText className="h-6 w-6 text-primary" />
                 </div>
               </div>
               

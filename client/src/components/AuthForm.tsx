@@ -3,7 +3,6 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface AuthFormProps {
   onLogin: (username: string) => void;
@@ -37,8 +36,6 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
     }));
   };
 
-  // Ya no necesitamos esta función ya que ahora usamos OnboardingFlow para el registro
-
   // Manejar el envío del formulario de login
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,11 +58,6 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
     } else {
       setErrors(prev => ({ ...prev, login: newErrors }));
     }
-  };
-
-  // Iniciar el proceso de registro
-  const handleSignupStart = () => {
-    onStartSignup();
   };
 
   return (
@@ -165,7 +157,7 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
               
               <Button 
                 className="w-full mobile-button h-12"
-                onClick={handleSignupStart}
+                onClick={onStartSignup}
                 type="button"
               >
                 Comenzar registro
