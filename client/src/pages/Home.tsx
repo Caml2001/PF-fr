@@ -4,9 +4,10 @@ import CreditBureauConsent from "../components/CreditBureauConsent";
 import Dashboard from "../components/Dashboard";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import OnboardingFlow, { OnboardingData } from "../components/OnboardingFlow";
 
 // Definimos los estados de flujo posibles
-type FlowState = "auth" | "consent" | "dashboard";
+type FlowState = "auth" | "onboarding" | "consent" | "dashboard";
 
 export default function Home() {
   const [flowState, setFlowState] = useState<FlowState>("auth");
@@ -14,11 +15,29 @@ export default function Home() {
     username: "",
     isNewUser: false
   });
+  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
 
-  // Manejar la autenticación (login o registro)
-  const handleAuth = (username: string, isNewUser: boolean) => {
-    setUserData({ username, isNewUser });
+  // Manejar inicio de sesión
+  const handleLogin = (username: string) => {
+    setUserData({ username, isNewUser: false });
     setFlowState("consent");
+  };
+  
+  // Manejar inicio del proceso de registro
+  const handleStartSignup = () => {
+    setFlowState("onboarding");
+  };
+  
+  // Manejar completado del onboarding
+  const handleOnboardingComplete = (data: OnboardingData) => {
+    setOnboardingData(data);
+    setUserData({ username: data.fullName, isNewUser: true });
+    setFlowState("consent");
+  };
+  
+  // Manejar cancelación del onboarding
+  const handleOnboardingCancel = () => {
+    setFlowState("auth");
   };
 
   // Manejar el consentimiento de buró de crédito
@@ -30,19 +49,22 @@ export default function Home() {
   const handleLogout = () => {
     setFlowState("auth");
     setUserData({ username: "", isNewUser: false });
+    setOnboardingData(null);
   };
 
   // Renderizar el componente adecuado según el estado del flujo
   const renderContent = () => {
     switch (flowState) {
       case "auth":
-        return <AuthForm onAuth={handleAuth} />;
+        return <AuthForm onLogin={handleLogin} onStartSignup={handleStartSignup} />;
+      case "onboarding":
+        return <OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} />;
       case "consent":
         return <CreditBureauConsent onConsent={handleConsent} onCancel={handleLogout} />;
       case "dashboard":
         return <Dashboard username={userData.username} onLogout={handleLogout} />;
       default:
-        return <AuthForm onAuth={handleAuth} />;
+        return <AuthForm onLogin={handleLogin} onStartSignup={handleStartSignup} />;
     }
   };
 

@@ -6,23 +6,18 @@ import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface AuthFormProps {
-  onAuth: (username: string, isNewUser: boolean) => void;
+  onLogin: (username: string) => void;
+  onStartSignup: () => void;
 }
 
-export default function AuthForm({ onAuth }: AuthFormProps) {
+export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
   const [loginData, setLoginData] = useState({
     username: "",
     password: ""
   });
-  const [signupData, setSignupData] = useState({
-    username: "",
-    password: "",
-    confirmPassword: ""
-  });
   const [errors, setErrors] = useState({
-    login: { username: "", password: "" },
-    signup: { username: "", password: "", confirmPassword: "" }
+    login: { username: "", password: "" }
   });
 
   // Validar correo o teléfono
@@ -42,15 +37,7 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
     }));
   };
 
-  // Manejar cambios en el formulario de registro
-  const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setSignupData(prev => ({ ...prev, [id]: value }));
-    setErrors(prev => ({
-      ...prev,
-      signup: { ...prev.signup, [id]: "" }
-    }));
-  };
+  // Ya no necesitamos esta función ya que ahora usamos OnboardingFlow para el registro
 
   // Manejar el envío del formulario de login
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -70,39 +57,15 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
     }
     
     if (isValid) {
-      onAuth(loginData.username, false);
+      onLogin(loginData.username);
     } else {
       setErrors(prev => ({ ...prev, login: newErrors }));
     }
   };
 
-  // Manejar el envío del formulario de registro
-  const handleSignupSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newErrors = { username: "", password: "", confirmPassword: "" };
-    let isValid = true;
-    
-    if (!signupData.username.trim() || !validateContact(signupData.username.trim())) {
-      newErrors.username = "Por favor ingresa un correo o teléfono válido";
-      isValid = false;
-    }
-    
-    if (!signupData.password.trim() || signupData.password.length < 6) {
-      newErrors.password = "La contraseña debe tener al menos 6 caracteres";
-      isValid = false;
-    }
-    
-    if (signupData.password !== signupData.confirmPassword) {
-      newErrors.confirmPassword = "Las contraseñas no coinciden";
-      isValid = false;
-    }
-    
-    if (isValid) {
-      onAuth(signupData.username, true);
-    } else {
-      setErrors(prev => ({ ...prev, signup: newErrors }));
-    }
+  // Iniciar el proceso de registro
+  const handleSignupStart = () => {
+    onStartSignup();
   };
 
   return (
@@ -174,69 +137,52 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
             </>
           ) : (
             <>
-              <form onSubmit={handleSignupSubmit}>
-                <div className="mb-4">
-                  <Label htmlFor="username" className="mb-1 text-sm font-medium">
-                    Correo electrónico o teléfono
-                  </Label>
-                  <Input 
-                    id="username" 
-                    type="text" 
-                    placeholder="ejemplo@correo.com o 5555555555"
-                    value={signupData.username}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.username ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.username && <p className="text-destructive text-sm mt-1">{errors.signup.username}</p>}
-                </div>
-                
-                <div className="mb-4">
-                  <Label htmlFor="password" className="mb-1 text-sm font-medium">
-                    Contraseña
-                  </Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="Mínimo 6 caracteres"
-                    value={signupData.password}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.password ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.password && <p className="text-destructive text-sm mt-1">{errors.signup.password}</p>}
-                </div>
-                
-                <div className="mb-5">
-                  <Label htmlFor="confirmPassword" className="mb-1 text-sm font-medium">
-                    Confirmar contraseña
-                  </Label>
-                  <Input 
-                    id="confirmPassword" 
-                    type="password" 
-                    placeholder="Repite tu contraseña"
-                    value={signupData.confirmPassword}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.confirmPassword ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.confirmPassword && <p className="text-destructive text-sm mt-1">{errors.signup.confirmPassword}</p>}
-                </div>
-                
-                <Button type="submit" className="w-full mobile-button h-12">
-                  Crear cuenta
-                </Button>
-                
-                <div className="mt-4 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    ¿Ya tienes una cuenta?{" "}
-                    <Button 
-                      variant="link" 
-                      className="p-0 h-auto text-primary"
-                      onClick={() => setActiveTab("login")}
-                    >
-                      Iniciar sesión
-                    </Button>
-                  </p>
-                </div>
-              </form>
+              <div className="p-4 mb-5 bg-accent/40 rounded-xl text-center">
+                <p className="text-sm">
+                  Para crear tu cuenta necesitarás:
+                </p>
+                <ul className="text-sm mt-2 text-left space-y-1.5">
+                  <li className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary">
+                      1
+                    </div>
+                    <span>Tu identificación oficial (INE)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary">
+                      2
+                    </div>
+                    <span>Tu CURP</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <div className="h-4 w-4 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary">
+                      3
+                    </div>
+                    <span>Comprobante de domicilio</span>
+                  </li>
+                </ul>
+              </div>
+              
+              <Button 
+                className="w-full mobile-button h-12"
+                onClick={handleSignupStart}
+                type="button"
+              >
+                Comenzar registro
+              </Button>
+              
+              <div className="mt-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  ¿Ya tienes una cuenta?{" "}
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-primary"
+                    onClick={() => setActiveTab("login")}
+                  >
+                    Iniciar sesión
+                  </Button>
+                </p>
+              </div>
             </>
           )}
         </CardContent>
