@@ -2,15 +2,12 @@ import { HomeIcon, CreditCardIcon, UserIcon, SettingsIcon } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer>
-      <div className="flex justify-between items-center">
+    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 py-2 px-4">
+      <div className="flex justify-between items-center max-w-md mx-auto">
         <NavItem icon={<HomeIcon size={20} />} label="Inicio" active />
         <NavItem icon={<CreditCardIcon size={20} />} label="Préstamos" />
         <NavItem icon={<UserIcon size={20} />} label="Perfil" />
         <NavItem icon={<SettingsIcon size={20} />} label="Ajustes" />
-      </div>
-      <div className="mt-3 text-center text-xs text-muted-foreground">
-        <p>© {new Date().getFullYear()} MicroPréstamos. Todos los derechos reservados.</p>
       </div>
     </footer>
   );
