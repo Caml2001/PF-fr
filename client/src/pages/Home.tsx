@@ -1,9 +1,9 @@
 import { useState } from "react";
-import AuthForm from "@/components/AuthForm";
-import CreditBureauConsent from "@/components/CreditBureauConsent";
-import Dashboard from "@/components/Dashboard";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
+import AuthForm from "../components/AuthForm";
+import CreditBureauConsent from "../components/CreditBureauConsent";
+import Dashboard from "../components/Dashboard";
+import Header from "../components/Header";
+import Footer from "../components/Footer";
 
 // Definimos los estados de flujo posibles
 type FlowState = "auth" | "consent" | "dashboard";
