@@ -5,11 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>MicroPréstamos - Créditos Personales Rápidos</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="description" content="Solicita préstamos rápidos y seguros con MicroPréstamos" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(function(registration) {
+              console.log('Service Worker registrado con éxito:', registration.scope);
+            })
+            .catch(function(error) {
+              console.log('Registro de Service Worker fallido:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
