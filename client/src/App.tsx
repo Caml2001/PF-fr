@@ -22,8 +22,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
-        <Footer />
+        <div className="pb-20">
+          <Router />
+          <Footer />
+        </div>
       </TooltipProvider>
     </QueryClientProvider>
   );
