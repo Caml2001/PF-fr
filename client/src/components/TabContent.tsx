@@ -1,262 +1,293 @@
-import React from "react";
-import { LogOutIcon, CreditCardIcon } from "lucide-react";
+import * as React from "react";
+import Dashboard from "./Dashboard";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { 
+  CalendarIcon, 
+  ChevronRight, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  CreditCard, 
+  ShieldCheck,
+  Bell,
+  Moon,
+  Shield,
+  HelpCircle,
+  LogOut
+} from "lucide-react";
 
-// Sección de préstamos
+// Componente para la pestaña Préstamos
 export function LoansTab() {
-  const mockLoans = [
-    {
-      id: "loan1",
-      amount: 2500,
-      dueDate: "2023-12-15",
-      paymentsLeft: 2,
-      totalPayments: 4,
-      status: "active",
-      nextPaymentAmount: 625
-    },
-    {
-      id: "loan2",
-      amount: 5000,
-      dueDate: "2023-11-30",
-      paymentsLeft: 0,
-      totalPayments: 4,
-      status: "paid",
-      nextPaymentAmount: 0
-    }
-  ];
-
   return (
-    <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold mb-4">Mis Préstamos</h1>
+    <div className="space-y-6">
+      <div className="text-2xl font-bold">Mis Préstamos</div>
       
       <div className="space-y-4">
-        {mockLoans.map(loan => (
-          <div 
-            key={loan.id} 
-            className="bg-white p-4 rounded-lg shadow-sm border border-border"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <h3 className="font-medium">${loan.amount.toLocaleString()}</h3>
-                <p className="text-xs text-muted-foreground">
-                  Vence: {new Date(loan.dueDate).toLocaleDateString()}
-                </p>
-              </div>
-              <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                loan.status === 'active' ? 'bg-blue-100 text-blue-700' : 
-                loan.status === 'paid' ? 'bg-green-100 text-green-700' : 
-                'bg-red-100 text-red-700'
-              }`}>
-                {loan.status === 'active' ? 'Activo' : 
-                 loan.status === 'paid' ? 'Pagado' : 'Atrasado'}
-              </div>
+        <Card className="mobile-card cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg">$5,000</CardTitle>
+              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">Activo</Badge>
             </div>
-            
-            <div className="mt-2">
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary rounded-full" 
-                  style={{ 
-                    width: `${(loan.totalPayments - loan.paymentsLeft) / loan.totalPayments * 100}%` 
-                  }}
-                />
-              </div>
-              <div className="flex justify-between items-center mt-1">
-                <span className="text-xs text-muted-foreground">
-                  Pagos restantes: {loan.paymentsLeft} de {loan.totalPayments}
-                </span>
-                {loan.status === 'active' && (
-                  <span className="text-xs font-medium">
-                    Siguiente pago: ${loan.nextPaymentAmount}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Sección de perfil
-export function ProfileTab() {
-  const profile = {
-    fullName: "Juan Pérez Rodríguez",
-    email: "juan.perez@ejemplo.com",
-    phone: "55 1234 5678",
-    address: "Calle Reforma 123, Col. Centro, CDMX",
-    curp: "PERJ850101HDFXXX01",
-    verificationStatus: "verified"
-  };
-
-  return (
-    <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold mb-4">Mi Perfil</h1>
-      
-      <div className="bg-white rounded-lg border border-border p-4 mb-4">
-        <div className="flex items-center mb-4">
-          <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mr-3">
-            <span className="text-xl font-bold text-primary">
-              {profile.fullName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <h2 className="font-bold text-lg">{profile.fullName}</h2>
-            <div className="text-xs inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-              {profile.verificationStatus === 'verified' ? 'Verificado' : 
-               profile.verificationStatus === 'pending' ? 'Pendiente' : 'No verificado'}
-            </div>
-          </div>
-        </div>
+            <CardDescription className="flex items-center mt-1">
+              <CalendarIcon size={14} className="mr-1" />
+              15 de mayo de 2025
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="pt-2 flex justify-between items-center">
+            <div className="text-sm">1 pago pendiente</div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </CardFooter>
+        </Card>
         
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-xs text-muted-foreground mb-1">Correo electrónico</h3>
-            <p className="text-sm">{profile.email}</p>
-          </div>
-          <div>
-            <h3 className="text-xs text-muted-foreground mb-1">Teléfono</h3>
-            <p className="text-sm">{profile.phone}</p>
-          </div>
-          <div>
-            <h3 className="text-xs text-muted-foreground mb-1">Dirección</h3>
-            <p className="text-sm">{profile.address}</p>
-          </div>
-          <div>
-            <h3 className="text-xs text-muted-foreground mb-1">CURP</h3>
-            <p className="text-sm">{profile.curp}</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-white rounded-lg border border-border p-4">
-        <h3 className="font-medium mb-2">Métodos de pago</h3>
-        <div className="p-3 border border-dashed border-border rounded-md flex justify-between items-center">
-          <div className="flex items-center">
-            <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center mr-3">
-              <CreditCardIcon size={16} className="text-primary" />
+        <Card className="mobile-card cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg">$3,000</CardTitle>
+              <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Pagado</Badge>
             </div>
-            <div>
-              <p className="text-sm font-medium">Tarjeta terminación 4567</p>
-              <p className="text-xs text-muted-foreground">Expira: 12/26</p>
+            <CardDescription className="flex items-center mt-1">
+              <CalendarIcon size={14} className="mr-1" />
+              5 de abril de 2025
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="pt-2 flex justify-between items-center">
+            <div className="text-sm">Préstamo completado</div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </CardFooter>
+        </Card>
+        
+        <Card className="mobile-card cursor-pointer hover:shadow-lg transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <CardTitle className="text-lg">$2,000</CardTitle>
+              <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Atrasado</Badge>
             </div>
-          </div>
-          <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-            Principal
-          </div>
-        </div>
+            <CardDescription className="flex items-center mt-1">
+              <CalendarIcon size={14} className="mr-1" />
+              30 de marzo de 2025
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="pt-2 flex justify-between items-center">
+            <div className="text-sm">1 pago pendiente</div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </CardFooter>
+        </Card>
       </div>
     </div>
   );
 }
 
-// Sección de ajustes
+// Componente para la pestaña Perfil
+export function ProfileTab() {
+  return (
+    <div className="space-y-6">
+      <div className="text-2xl font-bold">Mi Perfil</div>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="bg-primary text-white text-lg">
+                  JP
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-lg">Juan Pérez López</CardTitle>
+                <CardDescription className="mt-1">
+                  <div className="flex items-center text-green-600 text-sm font-medium gap-1">
+                    <ShieldCheck size={16} />
+                    <span>Verificado</span>
+                  </div>
+                </CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Información personal</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Teléfono */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Phone size={18} />
+              <span>Teléfono</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>55 1234 5678</span>
+            </div>
+          </div>
+          <Separator />
+
+          {/* Email */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Mail size={18} />
+              <span>Correo electrónico</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>juan.perez@example.com</span>
+            </div>
+          </div>
+          <Separator />
+
+          {/* Dirección */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <MapPin size={18} />
+              <span>Dirección</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-right max-w-[180px] truncate">Calle Principal #123, Col. Centro, CDMX</span>
+            </div>
+          </div>
+          <Separator />
+
+          {/* CURP */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User size={18} />
+              <span>CURP</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>PELJ850512HDFRZN02</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Métodos de pago</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <CreditCard size={18} />
+              <span>Tarjeta terminación 4567</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Componente para la pestaña Ajustes
 export function SettingsTab({ onLogout }: { onLogout: () => void }) {
   return (
-    <div className="p-4 pb-24">
-      <h1 className="text-2xl font-bold mb-4">Ajustes</h1>
-      
-      <div className="space-y-4">
-        <div className="bg-white rounded-lg border border-border p-4">
-          <h3 className="font-medium mb-3">Notificaciones</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <label htmlFor="push-notifications" className="text-sm">Notificaciones push</label>
-              <div className="h-6 w-11 bg-primary rounded-full relative">
-                <div className="h-5 w-5 rounded-full bg-white absolute top-0.5 right-0.5 shadow"></div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <label htmlFor="email-notifications" className="text-sm">Notificaciones por correo</label>
-              <div className="h-6 w-11 bg-primary rounded-full relative">
-                <div className="h-5 w-5 rounded-full bg-white absolute top-0.5 right-0.5 shadow"></div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <label htmlFor="sms-notifications" className="text-sm">Notificaciones SMS</label>
-              <div className="h-6 w-11 bg-muted rounded-full relative">
-                <div className="h-5 w-5 rounded-full bg-white absolute top-0.5 left-0.5 shadow"></div>
-              </div>
+    <div className="space-y-6">
+      <div className="text-2xl font-bold">Ajustes</div>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Notificaciones</CardTitle>
+          <CardDescription>Configura las notificaciones que recibes</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Todas las notificaciones */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Bell size={18} className="text-muted-foreground" />
+              <span>Todas las notificaciones</span>
             </div>
           </div>
-        </div>
-        
-        <div className="bg-white rounded-lg border border-border p-4">
-          <h3 className="font-medium mb-3">Seguridad</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <label htmlFor="biometric" className="text-sm">Inicio de sesión biométrico</label>
-              <div className="h-6 w-11 bg-primary rounded-full relative">
-                <div className="h-5 w-5 rounded-full bg-white absolute top-0.5 right-0.5 shadow"></div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm">Cambiar contraseña</span>
-              <button className="text-xs text-primary">Editar</button>
+          <Separator />
+
+          {/* Recordatorios de pago */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm pl-6">Recordatorios de pago</span>
             </div>
           </div>
-        </div>
-        
-        <button
-          onClick={onLogout}
-          className="w-full flex items-center justify-center gap-2 p-3 text-red-500 bg-red-50 rounded-lg font-medium"
-        >
-          <LogOutIcon size={18} />
-          Cerrar sesión
-        </button>
-      </div>
+          <Separator />
+
+          {/* Promociones y ofertas */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm pl-6">Promociones y ofertas</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Apariencia</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Modo oscuro */}
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <Moon size={18} className="text-muted-foreground" />
+              <span>Modo oscuro</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mobile-card">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Seguridad y Soporte</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Privacidad y seguridad */}
+          <div className="flex justify-between items-center cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Shield size={18} className="text-muted-foreground" />
+              <span>Privacidad y seguridad</span>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </div>
+          <Separator />
+
+          {/* Ayuda y soporte */}
+          <div className="flex justify-between items-center cursor-pointer">
+            <div className="flex items-center gap-2">
+              <HelpCircle size={18} className="text-muted-foreground" />
+              <span>Ayuda y soporte</span>
+            </div>
+            <ChevronRight size={18} className="text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card 
+        className="mobile-card bg-muted hover:bg-muted/80 cursor-pointer" 
+        onClick={onLogout}
+      >
+        <CardContent className="py-4">
+          <div className="flex justify-center items-center gap-2 text-destructive">
+            <LogOut size={18} />
+            <span className="font-medium">Cerrar sesión</span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-// Sección de inicio (dashboard)
+// Componente para la pestaña Home
 export function HomeTab({ username, onLogout, onApplyCredit }: {
   username: string;
   onLogout: () => void;
   onApplyCredit: () => void;
 }) {
   return (
-    <div className="p-4 pb-24">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Hola, {username}</h1>
-      </div>
-
-      <div className="bg-gradient-to-r from-primary to-primary/80 text-white rounded-xl p-5 mb-6">
-        <h2 className="text-lg font-medium mb-1">Límite pre-aprobado</h2>
-        <div className="text-3xl font-bold mb-3">$5,000</div>
-        <button
-          onClick={onApplyCredit}
-          className="bg-white text-primary font-medium text-sm py-2 px-4 rounded-lg w-full"
-        >
-          Solicitar crédito
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg border border-border p-4 mb-4">
-        <h3 className="font-medium mb-3">Resumen de actividad</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Préstamos activos</span>
-            <span className="font-medium">1</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Próximo pago</span>
-            <span className="font-medium">15 dic - $625</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm text-muted-foreground">Total pagado</span>
-            <span className="font-medium">$5,625</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-muted/50 rounded-lg p-4">
-        <h3 className="font-medium mb-2">Consejos financieros</h3>
-        <p className="text-sm text-muted-foreground">
-          Realiza tus pagos a tiempo para mantener un buen historial crediticio y
-          aumentar tus posibilidades de obtener mejores condiciones en futuros préstamos.
-        </p>
-      </div>
-    </div>
+    <Dashboard 
+      username={username}
+      onLogout={onLogout}
+      onApplyCredit={onApplyCredit}
+    />
   );
 }
