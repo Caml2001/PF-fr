@@ -2,7 +2,7 @@ import { HomeIcon, CreditCardIcon, UserIcon, SettingsIcon } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 py-2 px-4 pb-6 safe-bottom">
+    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50 py-2 px-4">
       <div className="flex justify-between items-center max-w-md mx-auto">
         <NavItem icon={<HomeIcon size={20} />} label="Inicio" active />
         <NavItem icon={<CreditCardIcon size={20} />} label="Préstamos" />

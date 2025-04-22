@@ -80,9 +80,9 @@ export default function Home() {
   };
 
   return (
-    <div className="bg-accent min-h-screen py-4 md:py-8">
+    <div className="bg-accent min-h-screen py-4 md:py-8 pb-20">
       <div className="mobile-container">
-        <main className="mobile-content pb-24">
+        <main className="mobile-content">
           {renderContent()}
         </main>
         <Footer />
