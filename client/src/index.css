@@ -62,6 +62,11 @@
   .mobile-input {
     @apply rounded-xl border-input py-3;
   }
+  
+  /* Soporte para el home indicator de iOS */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
 }
   .dark {
       --background: 240 10% 3.9%;
