@@ -1,11 +1,15 @@
 import { useState } from "react";
 import AuthForm from "../components/AuthForm";
 import CreditBureauConsent from "../components/CreditBureauConsent";
-import Dashboard from "../components/Dashboard";
-import Footer from "../components/Footer";
 import OnboardingFlow, { OnboardingData } from "../components/OnboardingFlow";
 import CreditApplicationForm from "../components/CreditApplicationForm";
-import { HomeTab, LoansTab, ProfileTab, SettingsTab } from "../components/TabContent";
+import { 
+  SimpleFooter, 
+  HomeTabSimple as HomeTab, 
+  LoansTabSimple as LoansTab, 
+  ProfileTabSimple as ProfileTab, 
+  SettingsTabSimple as SettingsTab 
+} from "../components/SimpleTabs";
 
 // Definimos los estados de flujo posibles
 type FlowState = "auth" | "onboarding" | "consent" | "dashboard" | "apply";
@@ -135,7 +139,7 @@ export default function Home() {
         <main className="mobile-content pb-24">
           {renderContent()}
         </main>
-        <Footer 
+        <SimpleFooter 
           activeTab={getActiveTab()} 
           onTabChange={handleTabChange} 
         />

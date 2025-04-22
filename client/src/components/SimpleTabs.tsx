@@ -1,47 +1,8 @@
-import { useState } from "react";
-import { HomeIcon, CreditCardIcon, UserIcon, SettingsIcon } from "lucide-react";
-
-/**
- * Aplicación simplificada de microcréditos con navegación por pestañas
- */
-function App() {
-  type TabState = "home" | "loans" | "profile" | "settings";
-  const [activeTab, setActiveTab] = useState<TabState>("home");
-  const [username] = useState("Juan Pérez");
-  
-  // Renderizar contenido según la pestaña activa
-  const renderContent = () => {
-    switch (activeTab) {
-      case "home":
-        return <HomeTab username={username} onApplyCredit={() => console.log("Solicitar crédito")} />;
-      case "loans":
-        return <LoansTab />;
-      case "profile":
-        return <ProfileTab />;
-      case "settings":
-        return <SettingsTab />;
-      default:
-        return <HomeTab username={username} onApplyCredit={() => console.log("Solicitar crédito")} />;
-    }
-  };
-
-  return (
-    <div className="bg-accent min-h-screen py-4">
-      <div className="mobile-container">
-        <main className="mobile-content">
-          {renderContent()}
-        </main>
-        <Footer 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
-        />
-      </div>
-    </div>
-  );
-}
+import React from "react";
+import { HomeIcon, CreditCardIcon, UserIcon, SettingsIcon, LogOut } from "lucide-react";
 
 // Componente simple de navegación inferior
-function Footer({ activeTab, onTabChange }: {
+export function SimpleFooter({ activeTab, onTabChange }: {
   activeTab: 'home' | 'loans' | 'profile' | 'settings';
   onTabChange: (tab: 'home' | 'loans' | 'profile' | 'settings') => void;
 }) {
@@ -100,8 +61,9 @@ function NavButton({ icon, label, active, onClick }: {
 }
 
 // Componente pestaña inicio
-function HomeTab({ username, onApplyCredit }: {
+export function HomeTabSimple({ username, onLogout, onApplyCredit }: {
   username: string;
+  onLogout: () => void;
   onApplyCredit: () => void;
 }) {
   return (
@@ -132,7 +94,7 @@ function HomeTab({ username, onApplyCredit }: {
 }
 
 // Componente pestaña préstamos
-function LoansTab() {
+export function LoansTabSimple() {
   return (
     <div className="space-y-6">
       <div className="text-2xl font-bold">Mis Préstamos</div>
@@ -191,7 +153,7 @@ function LoansTab() {
 }
 
 // Componente pestaña perfil
-function ProfileTab() {
+export function ProfileTabSimple() {
   return (
     <div className="space-y-6">
       <div className="text-2xl font-bold">Mi Perfil</div>
@@ -273,7 +235,7 @@ function ProfileTab() {
 }
 
 // Componente pestaña ajustes
-function SettingsTab() {
+export function SettingsTabSimple({ onLogout }: { onLogout: () => void }) {
   return (
     <div className="space-y-6">
       <div className="text-2xl font-bold">Ajustes</div>
@@ -344,15 +306,13 @@ function SettingsTab() {
 
       <button 
         className="w-full py-3 bg-muted hover:bg-muted/80 text-destructive font-medium rounded-xl"
+        onClick={onLogout}
       >
         <div className="flex justify-center items-center gap-2">
+          <LogOut size={18} />
           <span>Cerrar sesión</span>
         </div>
       </button>
     </div>
   );
 }
-
-export default App;
-
-export default App;
