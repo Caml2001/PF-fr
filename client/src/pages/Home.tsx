@@ -2,7 +2,6 @@ import { useState } from "react";
 import AuthForm from "../components/AuthForm";
 import CreditBureauConsent from "../components/CreditBureauConsent";
 import Dashboard from "../components/Dashboard";
-import Header from "../components/Header";
 import Footer from "../components/Footer";
 import OnboardingFlow, { OnboardingData } from "../components/OnboardingFlow";
 import CreditApplicationForm from "../components/CreditApplicationForm";
@@ -83,10 +82,6 @@ export default function Home() {
   return (
     <div className="bg-accent min-h-screen py-4 md:py-8">
       <div className="mobile-container">
-        <div className="mobile-header">
-          <Header />
-        </div>
-        
         <main className="mobile-content">
           {renderContent()}
         </main>
