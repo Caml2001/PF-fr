@@ -5,9 +5,10 @@ import Dashboard from "../components/Dashboard";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import OnboardingFlow, { OnboardingData } from "../components/OnboardingFlow";
+import CreditApplicationForm from "../components/CreditApplicationForm";
 
 // Definimos los estados de flujo posibles
-type FlowState = "auth" | "onboarding" | "consent" | "dashboard";
+type FlowState = "auth" | "onboarding" | "consent" | "dashboard" | "apply";
 
 export default function Home() {
   const [flowState, setFlowState] = useState<FlowState>("auth");
@@ -52,6 +53,11 @@ export default function Home() {
     setOnboardingData(null);
   };
 
+  // Manejar la solicitud de crédito
+  const handleApplyCredit = () => {
+    setFlowState("apply");
+  };
+  
   // Renderizar el componente adecuado según el estado del flujo
   const renderContent = () => {
     switch (flowState) {
@@ -62,7 +68,13 @@ export default function Home() {
       case "consent":
         return <CreditBureauConsent onConsent={handleConsent} onCancel={handleLogout} />;
       case "dashboard":
-        return <Dashboard username={userData.username} onLogout={handleLogout} />;
+        return <Dashboard 
+                username={userData.username} 
+                onLogout={handleLogout} 
+                onApplyCredit={handleApplyCredit} 
+               />;
+      case "apply":
+        return <CreditApplicationForm onLogout={handleLogout} />;
       default:
         return <AuthForm onLogin={handleLogin} onStartSignup={handleStartSignup} />;
     }

@@ -1,178 +1,143 @@
 import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { InfoCircledIcon } from "@radix-ui/react-icons";
+import { Card, CardContent } from "./ui/card";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Slider } from "./ui/slider";
+import { 
+  LogOut, 
+  Info, 
+  ChevronDown 
+} from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 interface CreditApplicationFormProps {
   onLogout: () => void;
 }
 
 export default function CreditApplicationForm({ onLogout }: CreditApplicationFormProps) {
-  const [formData, setFormData] = useState({
-    fullName: "",
-    curp: "",
-    amount: ""
-  });
+  const [amount, setAmount] = useState(1000);
+  const [paymentTerm, setPaymentTerm] = useState("7");
+  const minAmount = 0;
+  const maxAmount = 4000;
   
-  const [errors, setErrors] = useState({
-    fullName: "",
-    curp: "",
-    amount: ""
-  });
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    
-    // For CURP, convert to uppercase
-    if (id === "curp") {
-      setFormData(prev => ({ ...prev, [id]: value.toUpperCase() }));
-    } else {
-      setFormData(prev => ({ ...prev, [id]: value }));
-    }
-    
-    // Clear error on change
-    setErrors(prev => ({ ...prev, [id]: "" }));
+  // Calcular la comisión (1.5%)
+  const commission = amount * 0.015;
+  // Calcular el monto a recibir
+  const amountToReceive = amount - commission;
+  
+  // Obtener la fecha límite (28 de abril de 2025 en este caso)
+  const deadlineDate = "28 de abril de 2025";
+  
+  // Mapeo de términos de pago a texto descriptivo
+  const paymentTermLabels: Record<string, string> = {
+    "7": "1 sem",
+    "14": "2 sem",
+    "21": "3 sem",
+    "30": "1 mes"
   };
-
-  const validateForm = () => {
-    const newErrors = {
-      fullName: "",
-      curp: "",
-      amount: ""
-    };
-    let isValid = true;
-
-    // Validate full name
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Este campo es obligatorio";
-      isValid = false;
-    }
-
-    // Validate CURP (18 characters, letters and numbers)
-    if (!formData.curp.trim() || !/^[A-Z0-9]{18}$/.test(formData.curp.trim())) {
-      newErrors.curp = "Ingresa un CURP válido (18 caracteres)";
-      isValid = false;
-    }
-
-    // Validate amount
-    const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || amount <= 500) {
-      newErrors.amount = "El monto debe ser mayor a $500";
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (validateForm()) {
-      // Log for backend integration
-      console.log('Credit application data:', {
-        fullName: formData.fullName,
-        curp: formData.curp,
-        amount: parseFloat(formData.amount)
-      });
-      
-      // Reset form
-      setFormData({
-        fullName: "",
-        curp: "",
-        amount: ""
-      });
-      
-      // Show success message
-      alert('¡Solicitud enviada con éxito! Pronto recibirás una respuesta.');
-    }
-  };
-
+  
   return (
-    <Card className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
-      <CardContent className="pt-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Solicitud de crédito</h2>
-          <Button 
-            variant="ghost" 
-            className="text-sm text-muted-foreground hover:text-primary"
-            onClick={onLogout}
-          >
-            Cerrar sesión
-          </Button>
+    <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-primary">Solicitud de crédito</h2>
+          <p className="text-muted-foreground text-sm">Personaliza tu préstamo</p>
         </div>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <Label htmlFor="fullName" className="mb-1">
-              Nombre completo
-            </Label>
-            <Input 
-              id="fullName" 
-              type="text" 
-              placeholder="Nombre y apellidos"
-              value={formData.fullName}
-              onChange={handleChange}
-              className={errors.fullName ? "border-destructive" : ""}
-            />
-            {errors.fullName && <p className="text-destructive text-sm mt-1">{errors.fullName}</p>}
-          </div>
-          
-          <div className="mb-4">
-            <Label htmlFor="curp" className="mb-1">
-              CURP
-            </Label>
-            <Input 
-              id="curp" 
-              type="text" 
-              placeholder="ABCD123456HDFXYZ01"
-              maxLength={18}
-              value={formData.curp}
-              onChange={handleChange}
-              className={`uppercase ${errors.curp ? "border-destructive" : ""}`}
-            />
-            {errors.curp && <p className="text-destructive text-sm mt-1">{errors.curp}</p>}
-          </div>
-          
-          <div className="mb-4">
-            <Label htmlFor="amount" className="mb-1">
-              Monto solicitado (MXN)
-            </Label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <span className="text-muted-foreground">$</span>
-              </div>
-              <Input 
-                id="amount" 
-                type="number" 
-                placeholder="5,000"
-                min="500"
-                max="50000"
-                value={formData.amount}
-                onChange={handleChange}
-                className={`pl-7 ${errors.amount ? "border-destructive" : ""}`}
-              />
+        <Button variant="ghost" size="icon" onClick={onLogout}>
+          <LogOut className="h-5 w-5" />
+        </Button>
+      </div>
+      
+      <Card className="mobile-card overflow-hidden">
+        <CardContent className="p-6">
+          {/* Plazo de pago */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-primary mb-3">Plazo de pago</h3>
+            <div className="grid grid-cols-4 gap-2">
+              {["7", "14", "21", "30"].map(term => (
+                <button
+                  key={term}
+                  className={`border rounded-lg p-3 text-center transition-all ${
+                    paymentTerm === term 
+                      ? "border-primary bg-primary/5 text-primary" 
+                      : "border-border"
+                  }`}
+                  onClick={() => setPaymentTerm(term)}
+                >
+                  <div className="font-bold">{term} días</div>
+                  <div className="text-xs text-muted-foreground">{paymentTermLabels[term]}</div>
+                </button>
+              ))}
             </div>
-            {errors.amount && <p className="text-destructive text-sm mt-1">{errors.amount}</p>}
-            <div className="text-xs text-muted-foreground mt-1">Préstamos desde $500 hasta $50,000 MXN</div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Fecha límite: {deadlineDate}
+            </p>
           </div>
           
-          <div className="py-3 px-4 bg-primary-50 rounded-md mb-4">
-            <div className="flex items-start">
-              <InfoCircledIcon className="w-5 h-5 text-primary-700 mr-2 mt-0.5 flex-shrink-0" />
-              <p className="text-sm text-primary-800">
-                Tu información está segura. Solo usaremos estos datos para procesar tu solicitud de crédito.
-              </p>
+          {/* Monto del crédito */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-primary mb-3">Monto del crédito</h3>
+            <div className="border border-border rounded-lg p-4 mb-3">
+              <div className="text-primary text-3xl font-bold">$ {amount.toLocaleString('es-MX')}.00</div>
+            </div>
+            
+            <Slider 
+              min={minAmount}
+              max={maxAmount}
+              step={100}
+              value={[amount]}
+              onValueChange={(values) => setAmount(values[0])}
+              className="my-4"
+            />
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>${minAmount.toLocaleString('es-MX')}</span>
+              <span>${maxAmount.toLocaleString('es-MX')}</span>
             </div>
           </div>
           
-          <Button type="submit" className="w-full">
-            Solicitar crédito
+          {/* Cuenta de depósito */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-primary mb-3">Cuenta de depósito</h3>
+            <Select defaultValue="">
+              <SelectTrigger className="w-full border-border h-14">
+                <SelectValue placeholder="Selecciona una cuenta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cuenta1">BBVA ****1234</SelectItem>
+                <SelectItem value="cuenta2">Santander ****5678</SelectItem>
+                <SelectItem value="cuenta3">Banorte ****9101</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Desglose */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-3">
+              <div className="text-sm">Comisión (1.5%)</div>
+              <div className="font-medium">${commission.toFixed(2)}</div>
+            </div>
+            
+            <div className="border-t border-border pt-3 flex justify-between items-center">
+              <div className="font-medium text-lg">Recibirás</div>
+              <div className="text-primary text-2xl font-bold">${amountToReceive.toFixed(2)}</div>
+            </div>
+          </div>
+          
+          {/* Aviso */}
+          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg mb-6">
+            <Info className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800">
+              El pago debe realizarse antes del {deadlineDate}
+            </p>
+          </div>
+          
+          {/* Botón de solicitud */}
+          <Button className="w-full mobile-button h-14 text-base">
+            Solicitar ${amount.toLocaleString('es-MX')}.00
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
