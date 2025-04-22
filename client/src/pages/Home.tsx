@@ -1,20 +1,49 @@
 import { useState } from "react";
-import LoginForm from "@/components/LoginForm";
-import CreditApplicationForm from "@/components/CreditApplicationForm";
+import AuthForm from "@/components/AuthForm";
+import CreditBureauConsent from "@/components/CreditBureauConsent";
+import Dashboard from "@/components/Dashboard";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-export default function Home() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [contactInfo, setContactInfo] = useState("");
+// Definimos los estados de flujo posibles
+type FlowState = "auth" | "consent" | "dashboard";
 
-  const handleLogin = (contact: string) => {
-    setContactInfo(contact);
-    setIsLoggedIn(true);
+export default function Home() {
+  const [flowState, setFlowState] = useState<FlowState>("auth");
+  const [userData, setUserData] = useState({
+    username: "",
+    isNewUser: false
+  });
+
+  // Manejar la autenticación (login o registro)
+  const handleAuth = (username: string, isNewUser: boolean) => {
+    setUserData({ username, isNewUser });
+    setFlowState("consent");
   };
 
+  // Manejar el consentimiento de buró de crédito
+  const handleConsent = () => {
+    setFlowState("dashboard");
+  };
+
+  // Manejar el logout
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    setFlowState("auth");
+    setUserData({ username: "", isNewUser: false });
+  };
+
+  // Renderizar el componente adecuado según el estado del flujo
+  const renderContent = () => {
+    switch (flowState) {
+      case "auth":
+        return <AuthForm onAuth={handleAuth} />;
+      case "consent":
+        return <CreditBureauConsent onConsent={handleConsent} onCancel={handleLogout} />;
+      case "dashboard":
+        return <Dashboard username={userData.username} onLogout={handleLogout} />;
+      default:
+        return <AuthForm onAuth={handleAuth} />;
+    }
   };
 
   return (
@@ -23,11 +52,7 @@ export default function Home() {
         <Header />
         
         <main>
-          {!isLoggedIn ? (
-            <LoginForm onLogin={handleLogin} />
-          ) : (
-            <CreditApplicationForm onLogout={handleLogout} />
-          )}
+          {renderContent()}
         </main>
         
         <Footer />
