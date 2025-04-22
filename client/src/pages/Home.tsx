@@ -85,7 +85,6 @@ export default function Home() {
         <main className="mobile-content">
           {renderContent()}
         </main>
-        <Footer />
       </div>
     </div>
   );
