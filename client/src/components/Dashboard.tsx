@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Separator } from "../components/ui/separator";
-import { CreditCardIcon, DollarSignIcon, ArrowRightIcon, BadgeCheckIcon } from "lucide-react";
+import { CreditCardIcon, DollarSignIcon, ArrowRightIcon, BadgeCheckIcon, ShieldCheckIcon } from "lucide-react";
 
 interface DashboardProps {
   username: string;
