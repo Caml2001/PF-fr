@@ -98,7 +98,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
       case "curp":
         if (!userData.curp.trim()) {
           newErrors.curp = "Por favor, introduce tu CURP";
-        } else if (!/^[A-Z]{4}[0-9]{6}[A-Z]{6}[0-9]{2}$/.test(userData.curp)) {
+        } else if (!/^[A-Z]{4}\d{6}[A-Z]{6}\d{2}$/.test(userData.curp)) {
           newErrors.curp = "El formato de CURP no es válido";
         }
         break;
