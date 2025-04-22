@@ -4,7 +4,6 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { CameraIcon, UploadIcon } from "lucide-react";
 
 interface AuthFormProps {
   onAuth: (username: string, isNewUser: boolean) => void;
@@ -17,45 +16,13 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
     password: ""
   });
   const [signupData, setSignupData] = useState({
-    fullName: "",
-    curp: "",
-    ineDocument: "",
-    address: "",
-    addressDocument: "",
     username: "",
     password: "",
     confirmPassword: ""
   });
-  const [errors, setErrors] = useState<{
-    login: { 
-      username: string; 
-      password: string; 
-    },
-    signup: { 
-      fullName: string;
-      curp: string;
-      ineDocument: string;
-      address: string;
-      addressDocument: string;
-      username: string; 
-      password: string; 
-      confirmPassword: string; 
-    }
-  }>({
-    login: { 
-      username: "", 
-      password: "" 
-    },
-    signup: { 
-      fullName: "",
-      curp: "",
-      ineDocument: "",
-      address: "",
-      addressDocument: "",
-      username: "", 
-      password: "", 
-      confirmPassword: "" 
-    }
+  const [errors, setErrors] = useState({
+    login: { username: "", password: "" },
+    signup: { username: "", password: "", confirmPassword: "" }
   });
 
   // Validar correo o teléfono
@@ -77,25 +44,12 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
 
   // Manejar cambios en el formulario de registro
   const handleSignupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value, type, files } = e.target;
-    
-    if (type === 'file' && files && files.length > 0) {
-      // Para campos de archivo, guardamos el nombre del archivo
-      setSignupData(prev => ({ ...prev, [id]: files[0].name }));
-    } else {
-      // Para campos de texto normales
-      setSignupData(prev => ({ ...prev, [id]: value }));
-    }
-    
+    const { id, value } = e.target;
+    setSignupData(prev => ({ ...prev, [id]: value }));
     setErrors(prev => ({
       ...prev,
       signup: { ...prev.signup, [id]: "" }
     }));
-  };
-  
-  // Manejar clic en el botón de selección de archivo
-  const handleFileButtonClick = (inputId: string) => {
-    document.getElementById(inputId)?.click();
   };
 
   // Manejar el envío del formulario de login
@@ -126,46 +80,8 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
   const handleSignupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newErrors = {
-      fullName: "",
-      curp: "",
-      ineDocument: "",
-      address: "",
-      addressDocument: "",
-      username: "", 
-      password: "", 
-      confirmPassword: ""
-    };
+    const newErrors = { username: "", password: "", confirmPassword: "" };
     let isValid = true;
-    
-    // Validaciones para los nuevos campos
-    if (!signupData.fullName.trim()) {
-      newErrors.fullName = "El nombre completo es obligatorio";
-      isValid = false;
-    }
-    
-    if (!signupData.curp.trim()) {
-      newErrors.curp = "La CURP es obligatoria";
-      isValid = false;
-    } else if (!/^[A-Z]{4}\d{6}[HM][A-Z]{5}[0-9A-Z]\d$/.test(signupData.curp.trim())) {
-      newErrors.curp = "Formato de CURP inválido";
-      isValid = false;
-    }
-    
-    if (!signupData.ineDocument) {
-      newErrors.ineDocument = "Debes proporcionar tu identificación INE";
-      isValid = false;
-    }
-    
-    if (!signupData.address.trim()) {
-      newErrors.address = "La dirección es obligatoria";
-      isValid = false;
-    }
-    
-    if (!signupData.addressDocument) {
-      newErrors.addressDocument = "Debes proporcionar tu comprobante de domicilio";
-      isValid = false;
-    }
     
     if (!signupData.username.trim() || !validateContact(signupData.username.trim())) {
       newErrors.username = "Por favor ingresa un correo o teléfono válido";
@@ -258,127 +174,8 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
             </>
           ) : (
             <>
-              <form onSubmit={handleSignupSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                <div>
-                  <Label htmlFor="fullName" className="mb-1 text-sm font-medium">
-                    Nombre completo
-                  </Label>
-                  <Input 
-                    id="fullName" 
-                    type="text" 
-                    placeholder="Nombre(s) y apellidos"
-                    value={signupData.fullName}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.fullName ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.fullName && <p className="text-destructive text-sm mt-1">{errors.signup.fullName}</p>}
-                </div>
-                
-                <div>
-                  <Label htmlFor="curp" className="mb-1 text-sm font-medium">
-                    CURP
-                  </Label>
-                  <Input 
-                    id="curp" 
-                    type="text" 
-                    placeholder="Clave Única de Registro de Población"
-                    value={signupData.curp}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.curp ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.curp && <p className="text-destructive text-sm mt-1">{errors.signup.curp}</p>}
-                </div>
-                
-                <div>
-                  <Label htmlFor="ineDocument" className="mb-1 text-sm font-medium">
-                    INE (foto o archivo)
-                  </Label>
-                  <div className={`border ${errors.signup.ineDocument ? "border-destructive" : "border-input"} rounded-xl p-4 text-center`}>
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <CameraIcon className="h-5 w-5 text-primary" />
-                      </div>
-                      <Label 
-                        htmlFor="ineDocument" 
-                        className="text-sm text-muted-foreground cursor-pointer hover:text-primary transition-colors"
-                      >
-                        Subir foto de INE
-                      </Label>
-                      <Input 
-                        id="ineDocument" 
-                        type="file" 
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleSignupChange}
-                      />
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-xs mt-2"
-                        onClick={() => handleFileButtonClick('ineDocument')}
-                      >
-                        <UploadIcon className="h-3 w-3 mr-1" />
-                        Seleccionar archivo
-                      </Button>
-                    </div>
-                  </div>
-                  {errors.signup.ineDocument && <p className="text-destructive text-sm mt-1">{errors.signup.ineDocument}</p>}
-                </div>
-                
-                <div>
-                  <Label htmlFor="address" className="mb-1 text-sm font-medium">
-                    Domicilio
-                  </Label>
-                  <Input 
-                    id="address" 
-                    type="text" 
-                    placeholder="Dirección completa (calle, número, colonia, etc.)"
-                    value={signupData.address}
-                    onChange={handleSignupChange}
-                    className={`mobile-input ${errors.signup.address ? "border-destructive" : ""}`}
-                  />
-                  {errors.signup.address && <p className="text-destructive text-sm mt-1">{errors.signup.address}</p>}
-                </div>
-                
-                <div>
-                  <Label htmlFor="addressDocument" className="mb-1 text-sm font-medium">
-                    Comprobante de domicilio
-                  </Label>
-                  <div className={`border ${errors.signup.addressDocument ? "border-destructive" : "border-input"} rounded-xl p-4 text-center`}>
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="bg-primary/10 p-2 rounded-full">
-                        <UploadIcon className="h-5 w-5 text-primary" />
-                      </div>
-                      <Label 
-                        htmlFor="addressDocument" 
-                        className="text-sm text-muted-foreground cursor-pointer hover:text-primary transition-colors"
-                      >
-                        Subir comprobante
-                      </Label>
-                      <Input 
-                        id="addressDocument" 
-                        type="file" 
-                        accept="image/*,.pdf"
-                        className="hidden"
-                        onChange={handleSignupChange}
-                      />
-                      <Button 
-                        type="button" 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-xs mt-2"
-                        onClick={() => handleFileButtonClick('addressDocument')}
-                      >
-                        <UploadIcon className="h-3 w-3 mr-1" />
-                        Seleccionar archivo
-                      </Button>
-                    </div>
-                  </div>
-                  {errors.signup.addressDocument && <p className="text-destructive text-sm mt-1">{errors.signup.addressDocument}</p>}
-                </div>
-                
-                <div>
+              <form onSubmit={handleSignupSubmit}>
+                <div className="mb-4">
                   <Label htmlFor="username" className="mb-1 text-sm font-medium">
                     Correo electrónico o teléfono
                   </Label>
@@ -393,7 +190,7 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
                   {errors.signup.username && <p className="text-destructive text-sm mt-1">{errors.signup.username}</p>}
                 </div>
                 
-                <div>
+                <div className="mb-4">
                   <Label htmlFor="password" className="mb-1 text-sm font-medium">
                     Contraseña
                   </Label>
@@ -408,7 +205,7 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
                   {errors.signup.password && <p className="text-destructive text-sm mt-1">{errors.signup.password}</p>}
                 </div>
                 
-                <div>
+                <div className="mb-5">
                   <Label htmlFor="confirmPassword" className="mb-1 text-sm font-medium">
                     Confirmar contraseña
                   </Label>
@@ -423,7 +220,7 @@ export default function AuthForm({ onAuth }: AuthFormProps) {
                   {errors.signup.confirmPassword && <p className="text-destructive text-sm mt-1">{errors.signup.confirmPassword}</p>}
                 </div>
                 
-                <Button type="submit" className="w-full mobile-button h-12 mt-6">
+                <Button type="submit" className="w-full mobile-button h-12">
                   Crear cuenta
                 </Button>
                 
