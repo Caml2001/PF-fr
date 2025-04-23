@@ -26,7 +26,7 @@ export default function CreditBureauConsent({ onConsent, onCancel }: CreditBurea
   };
 
   return (
-    <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
+    <div className="animate-in fade-in-50 duration-300">
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center bg-primary/10 p-3 rounded-full mb-2">
           <ShieldCheckIcon className="h-8 w-8 text-primary" />

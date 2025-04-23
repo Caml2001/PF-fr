@@ -483,7 +483,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
   const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
 
   return (
-    <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
+    <div className="animate-in fade-in-50 duration-300">
       <div className="text-center mb-4">
         <h2 className="text-xl font-bold text-primary">
           {steps[currentStep].title}

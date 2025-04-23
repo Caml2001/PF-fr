@@ -9,7 +9,7 @@ interface LayoutProps {
 
 export function PageContainer({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("animate-in fade-in-50 slide-in-from-bottom-5 duration-300 p-4", className)}>
+    <div className={cn("animate-in fade-in-50 duration-300 p-4", className)}>
       {children}
     </div>
   );

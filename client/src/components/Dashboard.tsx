@@ -22,7 +22,7 @@ export default function Dashboard({ username, onLogout, onApplyCredit }: Dashboa
   };
 
   return (
-    <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
+    <div className="animate-in fade-in-50 duration-300">
       <div className="flex justify-between items-center mb-5">
         <div>
           <h2 className="text-xl font-bold">¡Hola, <span className="text-primary">{username}</span>!</h2>

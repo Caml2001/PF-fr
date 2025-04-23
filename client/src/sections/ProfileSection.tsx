@@ -26,7 +26,7 @@ export default function ProfileSection() {
   };
 
   return (
-    <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300 p-4">
+    <div className="animate-in fade-in-50 duration-300 p-4">
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-5">Mi Perfil</h2>
         
