@@ -11,9 +11,16 @@ interface OnboardingFlowProps {
 }
 
 export interface OnboardingData {
-  fullName: string;
+  firstName: string;
+  middleName: string;
+  lastName: string;
+  secondLastName: string;
+  street: string;
+  number: string;
+  postalCode: string;
+  city: string;
+  state: string;
   curp: string;
-  address: string;
   ineDocument?: File;
   addressDocument?: File;
 }
@@ -28,9 +35,16 @@ interface StepConfig {
 export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowProps) {
   const [currentStep, setCurrentStep] = useState<StepKey>("name");
   const [userData, setUserData] = useState<OnboardingData>({
-    fullName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    secondLastName: "",
+    street: "",
+    number: "",
+    postalCode: "",
+    city: "",
+    state: "",
     curp: "",
-    address: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -38,7 +52,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
   const steps: Record<StepKey, StepConfig> = {
     "name": {
       title: "¿Cómo te llamas?",
-      subtitle: "Introduce tu nombre completo"
+      subtitle: "Introduce tus nombres y apellidos"
     },
     "ine": {
       title: "Identificación oficial",
@@ -86,8 +100,18 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
     
     switch (currentStep) {
       case "name":
-        if (!userData.fullName.trim()) {
-          newErrors.fullName = "Por favor, introduce tu nombre completo";
+        if (!userData.firstName.trim()) {
+          newErrors.firstName = "Por favor, introduce tu primer nombre";
+        }
+        // Segundo nombre puede ser opcional, pero puedes descomentar para hacerlo obligatorio
+        // if (!userData.middleName.trim()) {
+        //   newErrors.middleName = "Por favor, introduce tu segundo nombre";
+        // }
+        if (!userData.lastName.trim()) {
+          newErrors.lastName = "Por favor, introduce tu apellido paterno";
+        }
+        if (!userData.secondLastName.trim()) {
+          newErrors.secondLastName = "Por favor, introduce tu apellido materno";
         }
         break;
       case "ine":
@@ -101,8 +125,20 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         }
         break;
       case "address":
-        if (!userData.address.trim()) {
-          newErrors.address = "Por favor, introduce tu dirección completa";
+        if (!userData.street.trim()) {
+          newErrors.street = "Por favor, introduce la calle";
+        }
+        if (!userData.number.trim()) {
+          newErrors.number = "Por favor, introduce el número";
+        }
+        if (!userData.postalCode.trim()) {
+          newErrors.postalCode = "Por favor, introduce el código postal";
+        }
+        if (!userData.city.trim()) {
+          newErrors.city = "Por favor, introduce la ciudad";
+        }
+        if (!userData.state.trim()) {
+          newErrors.state = "Por favor, introduce el estado o provincia";
         }
         break;
       case "address-document":
@@ -146,17 +182,56 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-sm font-medium">
-                Nombre completo
+              <Label htmlFor="firstName" className="text-sm font-medium">
+                Primer nombre
               </Label>
               <Input
-                id="fullName"
-                placeholder="Ej. Juan Pérez García"
-                value={userData.fullName}
-                onChange={(e) => handleChange("fullName", e.target.value)}
-                className={`mobile-input ${errors.fullName ? "border-destructive" : ""}`}
+                id="firstName"
+                placeholder="Ej. Juan"
+                value={userData.firstName}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+                className={`mobile-input ${errors.firstName ? "border-destructive" : ""}`}
               />
-              {errors.fullName && <p className="text-destructive text-sm">{errors.fullName}</p>}
+              {errors.firstName && <p className="text-destructive text-sm">{errors.firstName}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="middleName" className="text-sm font-medium">
+                Segundo nombre
+              </Label>
+              <Input
+                id="middleName"
+                placeholder="Ej. Pablo"
+                value={userData.middleName}
+                onChange={(e) => handleChange("middleName", e.target.value)}
+                className={`mobile-input ${errors.middleName ? "border-destructive" : ""}`}
+              />
+              {errors.middleName && <p className="text-destructive text-sm">{errors.middleName}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName" className="text-sm font-medium">
+                Apellido paterno
+              </Label>
+              <Input
+                id="lastName"
+                placeholder="Ej. Pérez"
+                value={userData.lastName}
+                onChange={(e) => handleChange("lastName", e.target.value)}
+                className={`mobile-input ${errors.lastName ? "border-destructive" : ""}`}
+              />
+              {errors.lastName && <p className="text-destructive text-sm">{errors.lastName}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="secondLastName" className="text-sm font-medium">
+                Apellido materno
+              </Label>
+              <Input
+                id="secondLastName"
+                placeholder="Ej. García"
+                value={userData.secondLastName}
+                onChange={(e) => handleChange("secondLastName", e.target.value)}
+                className={`mobile-input ${errors.secondLastName ? "border-destructive" : ""}`}
+              />
+              {errors.secondLastName && <p className="text-destructive text-sm">{errors.secondLastName}</p>}
             </div>
           </div>
         );
@@ -245,17 +320,59 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         return (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="address" className="text-sm font-medium">
-                Dirección completa
-              </Label>
+              <Label htmlFor="street" className="text-sm font-medium">Calle</Label>
               <Input
-                id="address"
-                placeholder="Calle, número, colonia"
-                value={userData.address}
-                onChange={(e) => handleChange("address", e.target.value)}
-                className={`mobile-input ${errors.address ? "border-destructive" : ""}`}
+                id="street"
+                placeholder="Ej. Av. Reforma"
+                value={userData.street}
+                onChange={(e) => handleChange("street", e.target.value)}
+                className={`mobile-input ${errors.street ? "border-destructive" : ""}`}
               />
-              {errors.address && <p className="text-destructive text-sm">{errors.address}</p>}
+              {errors.street && <p className="text-destructive text-sm">{errors.street}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="number" className="text-sm font-medium">Número</Label>
+              <Input
+                id="number"
+                placeholder="Ej. 123"
+                value={userData.number}
+                onChange={(e) => handleChange("number", e.target.value)}
+                className={`mobile-input ${errors.number ? "border-destructive" : ""}`}
+              />
+              {errors.number && <p className="text-destructive text-sm">{errors.number}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="postalCode" className="text-sm font-medium">Código postal</Label>
+              <Input
+                id="postalCode"
+                placeholder="Ej. 12345"
+                value={userData.postalCode}
+                onChange={(e) => handleChange("postalCode", e.target.value)}
+                className={`mobile-input ${errors.postalCode ? "border-destructive" : ""}`}
+              />
+              {errors.postalCode && <p className="text-destructive text-sm">{errors.postalCode}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="city" className="text-sm font-medium">Ciudad</Label>
+              <Input
+                id="city"
+                placeholder="Ej. Ciudad de México"
+                value={userData.city}
+                onChange={(e) => handleChange("city", e.target.value)}
+                className={`mobile-input ${errors.city ? "border-destructive" : ""}`}
+              />
+              {errors.city && <p className="text-destructive text-sm">{errors.city}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="state" className="text-sm font-medium">Estado/Provincia</Label>
+              <Input
+                id="state"
+                placeholder="Ej. CDMX"
+                value={userData.state}
+                onChange={(e) => handleChange("state", e.target.value)}
+                className={`mobile-input ${errors.state ? "border-destructive" : ""}`}
+              />
+              {errors.state && <p className="text-destructive text-sm">{errors.state}</p>}
             </div>
           </div>
         );
@@ -326,7 +443,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
             <div className="bg-accent rounded-lg p-4 space-y-3">
               <div>
                 <p className="text-xs text-muted-foreground">Nombre completo</p>
-                <p className="font-medium">{userData.fullName}</p>
+                <p className="font-medium">{`${userData.firstName} ${userData.middleName} ${userData.lastName} ${userData.secondLastName}`.replace(/ +/g, " ").trim()}</p>
               </div>
               
               <div>
@@ -336,7 +453,9 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
               
               <div>
                 <p className="text-xs text-muted-foreground">Dirección</p>
-                <p className="font-medium">{userData.address}</p>
+                <p className="font-medium">
+                  {`${userData.street} ${userData.number}, CP ${userData.postalCode}, ${userData.city}, ${userData.state}`.replace(/ +/g, " ").trim()}
+                </p>
               </div>
               
               <div className="flex items-center space-x-2">
@@ -366,7 +485,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
   return (
     <div className="animate-in fade-in-50 slide-in-from-bottom-5 duration-300">
       <div className="text-center mb-4">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-700 text-transparent bg-clip-text inline-block">
+        <h2 className="text-xl font-bold text-primary">
           {steps[currentStep].title}
         </h2>
         <p className="text-muted-foreground text-sm mt-1">
