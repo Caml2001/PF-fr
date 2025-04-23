@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import AuthForm from "../components/AuthForm";
 import CreditBureauConsent from "../components/CreditBureauConsent";
 import Dashboard from "../components/Dashboard";
@@ -16,6 +17,7 @@ export default function Home() {
     isNewUser: false
   });
   const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
+  const [, setLocation] = useLocation();
 
   // Manejar inicio de sesión
   const handleLogin = (username: string) => {
@@ -42,7 +44,8 @@ export default function Home() {
 
   // Manejar el consentimiento de buró de crédito
   const handleConsent = () => {
-    setFlowState("dashboard");
+    // Redirigir a la nueva interfaz principal
+    setLocation("/app");
   };
 
   // Manejar el logout
