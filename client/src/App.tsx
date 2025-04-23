@@ -34,7 +34,7 @@ export default function App() {
       </main>
       
       {/* Navegación fija en la parte inferior */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t">
+      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t pb-[10px]">
         <ContentContainer>
           <div className="flex justify-around py-2">
             <NavButton
