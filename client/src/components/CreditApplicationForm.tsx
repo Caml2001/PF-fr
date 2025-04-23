@@ -85,7 +85,7 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
               </div>
               
               <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Plazo de pago</h3>
+                <h3 className="text-sm font-medium mb-2">Plazo de pago (días)</h3>
                 <div className="grid grid-cols-4 gap-2">
                   {["7", "14", "21", "30"].map(term => (
                     <button
