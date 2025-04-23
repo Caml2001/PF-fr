@@ -1,68 +1,40 @@
-# PrestaFirme
+# PrestaFirme Frontend
 
-Sistema MVP para microcréditos digitales.
+Este repositorio contiene el frontend del MVP para PrestaFirme, una aplicación digital de microcréditos.
 
----
+## Descripción General
 
-## Descripción
-PrestaFirme es una plataforma modular para originación, gestión y cobranza de micropréstamos 100% digitales, orientada a usuarios en México. El proyecto está diseñado como un monorepo escalable, con separación clara entre frontend, backend y paquetes compartidos.
-
----
-
-## Estructura del repositorio
-
-```
-mini-lender/
-├─ apps/
-│  ├─ api/                # Backend REST/GraphQL
-│  ├─ bot/                # Webhook de WhatsApp + orquestación LLM
-│  ├─ jobs/               # Workers (recordatorios, conciliaciones)
-│  └─ edge-functions/     # Supabase Edge Functions
-├─ packages/
-│  ├─ db/                 # Modelos y acceso a base de datos
-│  ├─ shared/             # Utilidades compartidas (logger, SDKs)
-│  └─ config/             # Tipos y configuración de entorno
-├─ infra/                 # Infraestructura y migraciones
-└─ turbo.json / nx.json   # Pipeline de build, lint, test
-```
-
----
-
-## Principales flujos y endpoints
-
-- **Autenticación:** Signup, login, logout, JWT, social login.
-- **Onboarding:** Captura de datos, documentos, consentimiento buró.
-- **Buró de crédito:** Consentimiento y consulta.
-- **Solicitud de crédito:** Alta, estatus, cálculo de comisión y monto a recibir.
-- **Documentos:** Subida y consulta de INE/comprobante domicilio.
-- **Pagos:** Registro, historial y cronograma de pagos.
-
-Consulta la documentación detallada en:
-- `/documentation/backend-structure/README.md`: Modelo de base de datos y arquitectura.
-- `/documentation/frontend-requirements/`: Requerimientos y flujos frontend.
-
----
+La aplicación permite a los usuarios:
+- Registrarse e iniciar sesión (autenticación por email o teléfono).
+- Completar un onboarding con datos personales y documentos.
+- Otorgar consentimiento para consulta en buró de crédito.
+- Solicitar un crédito, seleccionando monto y plazo.
+- Consultar el estado de su solicitud y el cronograma de pagos.
+- Realizar pagos de su crédito y consultar historial de pagos.
 
 ## Tecnologías principales
-- **Frontend:** React + TypeScript
-- **Backend:** Node.js (Express/Fastify), Supabase (Postgres, Auth, Storage)
-- **Infraestructura:** Docker, Terraform, Supabase CLI
-- **Monorepo:** PNPM Workspaces, Turbo/NX
+- **React** (Vite) + TypeScript
+- **TailwindCSS** para estilos
+- **Radix UI** y componentes personalizados
+- Arquitectura modular por flujos de negocio
 
----
+## Estructura principal
 
-## Desarrollo y despliegue
-1. Clona el repositorio y ejecuta `pnpm install` en la raíz.
-2. Configura las variables de entorno en `/packages/config` y `.env`.
-3. Usa los comandos de Turbo/NX para desarrollo y build.
-4. Despliegue recomendado: Supabase + Vercel/Fly.io.
+- `/client/src/components` — Componentes React principales (formularios, onboarding, pagos, etc.)
+- `/documentation/frontend-requirements` — Documentación de requerimientos del frontend por flujo
+- `/documentation/backend-requests` — (Referencia) Documentación de endpoints backend sugeridos
+- `/server` — (Opcional) Mock API o backend de pruebas
 
----
+## Scripts útiles
 
-## Colaboradores
-- Carlos Martínez López (@Caml2001) y equipo.
+- `npm install` — Instala dependencias
+- `npm run dev` — Inicia el servidor de desarrollo
+- `npm run build` — Compila para producción
 
----
+## Notas
+- El frontend está preparado para consumir endpoints RESTful documentados en `/documentation/backend-requests`.
+- El diseño y los flujos están pensados para dispositivos móviles, pero son responsivos.
+- Para pruebas locales, se puede usar un backend mock o conectar con el backend real conforme se implemente.
 
-## Licencia
-MIT
+## Contacto
+Para dudas o colaboración, contactar a los responsables del proyecto.
