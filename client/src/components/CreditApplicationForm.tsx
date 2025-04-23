@@ -11,10 +11,10 @@ import {
   CalendarIcon,
   CheckIcon
 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { PageContainer, ContentContainer, PageHeader, SectionContainer, SectionHeader } from "./Layout";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
+import { Sheet } from "@silk-hq/components";
 
 interface CreditApplicationFormProps {
   onLogout: () => void;
@@ -41,7 +41,16 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
     "21": "3 sem",
     "30": "1 mes"
   };
-  
+
+  // Estado para el bottom sheet de cuentas
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<string>("");
+  const accounts = [
+    { value: "cuenta1", label: "BBVA ****1234" },
+    { value: "cuenta2", label: "Santander ****5678" },
+    { value: "cuenta3", label: "Banorte ****9101" },
+  ];
+
   return (
     <PageContainer>
       <ContentContainer>
@@ -142,16 +151,51 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
           <h3 className="text-sm font-medium mb-3">Cuenta de depósito</h3>
           <Card className="overflow-hidden mb-4">
             <CardContent className="p-4">
-              <Select defaultValue="">
-                <SelectTrigger className="w-full border-border">
-                  <SelectValue placeholder="Selecciona una cuenta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cuenta1">BBVA ****1234</SelectItem>
-                  <SelectItem value="cuenta2">Santander ****5678</SelectItem>
-                  <SelectItem value="cuenta3">Banorte ****9101</SelectItem>
-                </SelectContent>
-              </Select>
+              <button
+                className="w-full border border-border rounded-lg px-4 py-3 text-left flex items-center justify-between bg-white hover:bg-accent transition-colors"
+                onClick={() => setAccountSheetOpen(true)}
+                type="button"
+              >
+                <span className={selectedAccount ? "" : "text-muted-foreground"}>
+                  {selectedAccount
+                    ? accounts.find(acc => acc.value === selectedAccount)?.label
+                    : "Selecciona una cuenta"}
+                </span>
+                <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <Sheet.Root open={accountSheetOpen} onOpenChange={setAccountSheetOpen} license="commercial">
+                <Sheet.Portal>
+                  <Sheet.View nativeEdgeSwipePrevention={true}>
+                    <Sheet.Backdrop themeColorDimming="auto" />
+                    <Sheet.Content className="rounded-t-3xl shadow-2xl p-0 overflow-hidden bg-white">
+                      <Sheet.BleedingBackground className="rounded-t-3xl bg-white" />
+                      <div className="py-6 px-4">
+                        <div className="mb-4 text-center">
+                          <span className="block text-lg font-semibold text-primary">Selecciona una cuenta</span>
+                        </div>
+                        <div className="space-y-3">
+                          {accounts.map(acc => (
+                            <button
+                              key={acc.value}
+                              className={`w-full text-left px-6 py-5 rounded-2xl border border-border transition-colors flex items-center justify-between text-lg font-medium shadow-sm ${selectedAccount === acc.value ? "bg-primary/10 border-primary scale-[1.04]" : "bg-white hover:bg-accent"}`}
+                              style={{ minHeight: 64 }}
+                              onClick={() => {
+                                setSelectedAccount(acc.value);
+                                setAccountSheetOpen(false);
+                              }}
+                            >
+                              <span>{acc.label}</span>
+                              {selectedAccount === acc.value && (
+                                <CheckIcon className="ml-4 h-5 w-5 text-primary align-text-bottom" />
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </Sheet.Content>
+                  </Sheet.View>
+                </Sheet.Portal>
+              </Sheet.Root>
             </CardContent>
           </Card>
           

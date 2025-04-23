@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/utils";
 import CreditApplicationForm from "@/components/CreditApplicationForm";
 import AdvancePaymentForm from "@/components/AdvancePaymentForm";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer, SectionHeader } from "@/components/Layout";
+import TopNavMenu from "@/components/TopNavMenu";
 
 // Datos de ejemplo de préstamos
 const loans = [
@@ -145,9 +146,15 @@ export default function LoansSection() {
         <SectionHeader 
           title="Mis Préstamos"
           action={
-            <Button variant="outline" size="sm" className="text-xs">
-              Ver historial
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="text-xs">
+                Ver historial
+              </Button>
+              {/* Menú Silk solo en navegador (no PWA) */}
+              {!window.matchMedia('(display-mode: standalone)').matches && !(window.navigator as any).standalone && (
+                <TopNavMenu />
+              )}
+            </div>
           }
         />
         
