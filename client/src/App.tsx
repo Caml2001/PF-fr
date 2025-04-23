@@ -7,14 +7,16 @@ import AuthForm from "./components/AuthForm";
 import OnboardingFlow from "./components/OnboardingFlow";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
 import { ContentContainer, PageContainer } from "./components/Layout";
+import { useIsPWA } from "./hooks/useIsPWA";
 
-type Section = "home" | "loans" | "profile" | "settings";
+type Section = "inicio" | "prestamos" | "perfil" | "ajustes";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const [currentSection, setCurrentSection] = useState<Section>("home");
-  
+  const [currentSection, setCurrentSection] = useState<Section>("inicio");
+  const isPWA = useIsPWA();
+
   useEffect(() => {
     // Check if there's a logged-in user in localStorage
     const storedAuth = localStorage.getItem('isAuthenticated');
@@ -22,31 +24,31 @@ export default function App() {
       setIsAuthenticated(true);
     }
   }, []);
-  
+
   // Función para manejar el login
   const handleLogin = (username: string) => {
     console.log("Iniciando sesión con:", username);
     setIsAuthenticated(true);
     localStorage.setItem('isAuthenticated', 'true');
   };
-  
+
   // Función para manejar el inicio del registro
   const handleStartSignup = () => {
     setIsSigningUp(true);
   };
-  
+
   // Función para manejar la finalización del onboarding
   const handleOnboardingComplete = () => {
     setIsAuthenticated(true);
     setIsSigningUp(false);
     localStorage.setItem('isAuthenticated', 'true');
   };
-  
+
   // Función para manejar la cancelación del onboarding
   const handleOnboardingCancel = () => {
     setIsSigningUp(false);
   };
-  
+
   // Si el usuario no está autenticado y no está en proceso de registro, mostrar el formulario de auth
   if (!isAuthenticated && !isSigningUp) {
     return (
@@ -60,7 +62,7 @@ export default function App() {
       </PageContainer>
     );
   }
-  
+
   // Si el usuario está en proceso de registro, mostrar el flujo de onboarding
   if (!isAuthenticated && isSigningUp) {
     return (
@@ -74,20 +76,20 @@ export default function App() {
       </PageContainer>
     );
   }
-  
+
   // Renderizar la sección actual
   const renderCurrentSection = () => {
     switch (currentSection) {
-      case "home":
-        return <HomeSection />;
-      case "loans":
+      case "inicio":
+        return <HomeSection setSection={setCurrentSection} />;
+      case "prestamos":
         return <LoansSection />;
-      case "profile":
+      case "perfil":
         return <ProfileSection />;
-      case "settings":
+      case "ajustes":
         return <SettingsSection />;
       default:
-        return <HomeSection />;
+        return <HomeSection setSection={setCurrentSection} />;
     }
   };
 
@@ -96,38 +98,41 @@ export default function App() {
       <main className="flex-1 pb-16">
         {renderCurrentSection()}
       </main>
-      
-      {/* Navegación fija en la parte inferior */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-background border-t pb-[10px]">
-        <ContentContainer>
-          <div className="flex justify-around py-2">
-            <NavButton
-              icon={<HomeIcon className="h-5 w-5" />}
-              label="Inicio"
-              isActive={currentSection === "home"}
-              onClick={() => setCurrentSection("home")}
-            />
-            <NavButton
-              icon={<DollarSignIcon className="h-5 w-5" />}
-              label="Préstamos"
-              isActive={currentSection === "loans"}
-              onClick={() => setCurrentSection("loans")}
-            />
-            <NavButton
-              icon={<UserIcon className="h-5 w-5" />}
-              label="Perfil"
-              isActive={currentSection === "profile"}
-              onClick={() => setCurrentSection("profile")}
-            />
-            <NavButton
-              icon={<SettingsIcon className="h-5 w-5" />}
-              label="Ajustes"
-              isActive={currentSection === "settings"}
-              onClick={() => setCurrentSection("settings")}
-            />
-          </div>
-        </ContentContainer>
-      </nav>
+      {/* Menú inferior solo en PWA */}
+      {isPWA && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-background border-t pb-[10px]">
+          <ContentContainer>
+            <div className="flex justify-around py-2">
+              <NavButton
+                icon={<HomeIcon className="h-5 w-5" />}
+                label="Inicio"
+                isActive={currentSection === "inicio"}
+                onClick={() => setCurrentSection("inicio")}
+              />
+              <NavButton
+                icon={<DollarSignIcon className="h-5 w-5" />}
+                label="Préstamos"
+                isActive={currentSection === "prestamos"}
+                onClick={() => setCurrentSection("prestamos")}
+              />
+              <NavButton
+                icon={<UserIcon className="h-5 w-5" />}
+                label="Perfil"
+                isActive={currentSection === "perfil"}
+                onClick={() => setCurrentSection("perfil")}
+              />
+              <NavButton
+                icon={<SettingsIcon className="h-5 w-5" />}
+                label="Ajustes"
+                isActive={currentSection === "ajustes"}
+                onClick={() => setCurrentSection("ajustes")}
+              />
+            </div>
+          </ContentContainer>
+        </nav>
+      )}
+      {/* Sheet lateral tipo bottom sheet con Silk ahora se controla desde HomeSection */}
+      {/* Ya no es necesario aquí */}
     </div>
   );
 }

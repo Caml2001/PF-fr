@@ -5,7 +5,11 @@ import {
   ClockIcon,
   CalendarIcon,
   CheckCircleIcon,
-  StarIcon
+  StarIcon,
+  HomeIcon,
+  CreditCardIcon,
+  UserIcon,
+  SettingsIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
@@ -14,8 +18,13 @@ import CreditApplicationForm from "@/components/CreditApplicationForm";
 import { ContentContainer, PageContainer, SectionContainer, SectionHeader } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Sheet } from "@silk-hq/components";
 
-export default function HomeSection() {
+interface HomeSectionProps {
+  setSection?: (section: string) => void;
+}
+
+export default function HomeSection({ setSection }: HomeSectionProps) {
   // Monto preaprobado fijo
   const preapprovedAmount = 5000;
   // Estado para controlar si se muestra el formulario de solicitud
@@ -24,6 +33,13 @@ export default function HomeSection() {
   // Función para regresar a la vista principal
   const handleBack = () => {
     setShowApplication(false);
+  };
+
+  // Handlers para navegación de menú
+  const handleNav = (section: string) => {
+    if (setSection) {
+      setSection(section);
+    }
   };
 
   // Si estamos mostrando el formulario de solicitud
@@ -39,10 +55,65 @@ export default function HomeSection() {
             title="¡Hola, Carlos!" 
             subtitle="Bienvenido a PrestaFirme"
           />
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100 px-3 py-1 text-sm rounded-full">
-            <CheckCircleIcon className="h-4 w-4 mr-1.5" />
-            Activo
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-green-100 text-green-800 hover:bg-green-100 px-3 py-1 text-sm rounded-full">
+              <CheckCircleIcon className="h-4 w-4 mr-1.5" />
+              Activo
+            </Badge>
+            {/* Menú Silk Bottom Sheet solo en navegador (no PWA) */}
+            {!window.matchMedia('(display-mode: standalone)').matches && !(window.navigator as any).standalone && (
+              <Sheet.Root license="commercial">
+                <Sheet.Trigger asChild>
+                  <button
+                    className="ml-2 bg-background border rounded-full p-2 shadow-md hover:bg-accent transition-colors"
+                    aria-label="Abrir menú"
+                  >
+                    <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-menu"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                  </button>
+                </Sheet.Trigger>
+                <Sheet.Portal>
+                  <Sheet.View nativeEdgeSwipePrevention={true}>
+                    <Sheet.Backdrop themeColorDimming="auto" />
+                    <Sheet.Content className="rounded-t-3xl shadow-2xl p-0 overflow-hidden bg-white">
+                      <Sheet.BleedingBackground className="rounded-t-3xl bg-white" />
+                      <div className="py-6 px-4">
+                        <div className="mb-4 text-center">
+                          <span className="block text-lg font-semibold text-primary">Menú de navegación</span>
+                          <span className="block text-xs text-muted-foreground">Selecciona una sección</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <div className="flex flex-col items-center flex-1">
+                            <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("inicio")}>
+                              <HomeIcon className="h-7 w-7 text-primary" />
+                            </button>
+                            <span className="text-xs font-medium text-primary mt-2">Inicio</span>
+                          </div>
+                          <div className="flex flex-col items-center flex-1">
+                            <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("prestamos")}>
+                              <CreditCardIcon className="h-7 w-7 text-primary" />
+                            </button>
+                            <span className="text-xs font-medium text-primary mt-2">Préstamos</span>
+                          </div>
+                          <div className="flex flex-col items-center flex-1">
+                            <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("perfil")}>
+                              <UserIcon className="h-7 w-7 text-primary" />
+                            </button>
+                            <span className="text-xs font-medium text-primary mt-2">Perfil</span>
+                          </div>
+                          <div className="flex flex-col items-center flex-1">
+                            <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("ajustes")}>
+                              <SettingsIcon className="h-7 w-7 text-primary" />
+                            </button>
+                            <span className="text-xs font-medium text-primary mt-2">Ajustes</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Sheet.Content>
+                  </Sheet.View>
+                </Sheet.Portal>
+              </Sheet.Root>
+            )}
+          </div>
         </div>
         
         {/* Tarjeta con el monto preaprobado */}
