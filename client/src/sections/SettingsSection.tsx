@@ -147,11 +147,6 @@ export default function SettingsSection() {
           </div>
         </CardContent>
       </Card>
-      
-      <div className="text-center text-xs text-muted-foreground mt-6">
-        <p>© 2025 PréstaFirme. Todos los derechos reservados.</p>
-        <p className="mt-1">Desarrollado con ❤️ por Carlos Martínez</p>
-      </div>
     </div>
   );
 } 
