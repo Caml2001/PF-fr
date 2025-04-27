@@ -24,32 +24,53 @@ export default function App() {
     }
   }, []);
 
-  // Función para manejar el login
+  // Función para manejar el login (ahora llamada por AuthForm DESPUÉS de una API exitosa)
   const handleLogin = (username: string) => {
-    console.log("Iniciando sesión con:", username);
+    console.log("Login successful for:", username); // Username might not be needed here anymore
     setIsAuthenticated(true);
     localStorage.setItem('isAuthenticated', 'true');
-    window.location.replace("/home");
+    // Redirect after state is set, ensuring UI updates smoothly
+    // Using setLocation might be smoother than window.location.replace if no full reload is desired
+    setLocation("/home"); 
+    // window.location.replace("/home"); // Keep if full reload is intended
   };
 
-  // Función para manejar la finalización del onboarding
-  const handleOnboardingComplete = () => {
+  // Función para manejar la finalización del onboarding (después de signup API exitoso)
+  const handleOnboardingComplete = (/* Optional: userData from OnboardingFlow if needed */) => {
+    console.log("Onboarding/Signup successful, logging user in.");
     setIsAuthenticated(true);
     localStorage.setItem('isAuthenticated', 'true');
+    setLocation("/home"); // Navigate to home after successful signup/login
   };
 
   // Función para manejar la cancelación del onboarding
   const handleOnboardingCancel = () => {
   };
 
+  // Función para manejar el logout
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('isAuthenticated');
+    setLocation("/login");
+    console.log("User logged out");
+  };
+
   // Routing for login/register/onboarding
   if (!isAuthenticated) {
     return (
       <Router>
-        <Route path="/login"><PageContainer><ContentContainer><AuthForm onLogin={handleLogin} onStartSignup={handleOnboardingComplete} /></ContentContainer></PageContainer></Route>
+        <Route path="/login"><PageContainer><ContentContainer><AuthForm onLogin={handleLogin} onStartSignup={() => setLocation('/register')} /></ContentContainer></PageContainer></Route>
         <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
         {/* Default: redirect to login */}
-        <Route path="/">{() => { window.location.replace("/login"); return null; }}</Route>
+        <Route path="/">{() => { 
+          // Check auth state again in case it changed while navigating
+          if (!isAuthenticated) {
+             setLocation("/login");
+          } else {
+            setLocation("/home"); // Should not happen if !isAuthenticated, but safer
+          }
+          return null; 
+        }}</Route>
       </Router>
     );
   }
@@ -62,10 +83,14 @@ export default function App() {
           <Route path="/loans"><LoansSection /></Route>
           <Route path="/profile"><ProfileSection /></Route>
           <Route path="/settings"><SettingsSection /></Route>
-          <Route path="/apply"><CreditApplicationForm /></Route>
+          <Route path="/apply"><CreditApplicationForm onLogout={handleLogout} /></Route>
           {/* Example: you can add more routes for loan details, payments, etc. */}
           {/* Redirect root to /home */}
-          <Route path="/">{() => { window.location.replace("/home"); return null; }}</Route>
+          <Route path="/">{() => { 
+            // Redirect authenticated users from root to /home
+            setLocation("/home"); 
+            return null; 
+          }}</Route>
         </main>
         {/* Bottom nav only in PWA */}
         {isPWA && (

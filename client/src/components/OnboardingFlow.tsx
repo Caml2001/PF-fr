@@ -1,31 +1,45 @@
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Camera, Upload, FileText } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Camera, Upload, FileText, Loader2 } from "lucide-react";
+import { useRegister } from '../hooks/useRegister';
+import { useSubmitPhone } from '../hooks/useSubmitPhone';
+import { useVerifyOtp } from '../hooks/useVerifyOtp';
+import { useUploadIne } from '../hooks/useUploadIne';
+import { useUpdateProfile } from '../hooks/useUpdateProfile';
+import { type SignupData } from '../lib/api/authService';
+import ProfileReview from '../components/ProfileReview';
+import ProcessingOverlay from "./ProcessingOverlay";
 
 interface OnboardingFlowProps {
-  onComplete: (userData: OnboardingData) => void;
+  onComplete: () => void;
   onCancel: () => void;
 }
 
 export interface OnboardingData {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  phoneNumber: string;
+  otp: string;
   firstName: string;
   middleName: string;
   lastName: string;
-  secondLastName: string;
+  motherLastName: string;
+  ineFrontFile?: File;
+  ineBackFile?: File;
+  curp: string;
   street: string;
   number: string;
-  postalCode: string;
-  city: string;
+  colonia: string;
+  municipality: string;
   state: string;
-  curp: string;
-  ineDocument?: File;
-  addressDocument?: File;
+  postalCode: string;
 }
 
-type StepKey = "name" | "ine" | "curp" | "address" | "address-document" | "review";
+type StepKey = "account" | "phone" | "otp" | "name" | "ine" | "review" | "bureauConsent" | "done";
 
 interface StepConfig {
   title: string;
@@ -33,139 +47,208 @@ interface StepConfig {
 }
 
 export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowProps) {
-  const [currentStep, setCurrentStep] = useState<StepKey>("name");
+  const [currentStep, setCurrentStep] = useState<StepKey>("account");
   const [userData, setUserData] = useState<OnboardingData>({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    phoneNumber: "",
+    otp: "",
     firstName: "",
     middleName: "",
     lastName: "",
-    secondLastName: "",
+    motherLastName: "",
+    ineFrontFile: undefined,
+    ineBackFile: undefined,
+    curp: "",
     street: "",
     number: "",
-    postalCode: "",
-    city: "",
+    colonia: "",
+    municipality: "",
     state: "",
-    curp: "",
+    postalCode: "",
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof OnboardingData, string>>>({});
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [reviewProfile, setReviewProfile] = useState<any | null>(null);
 
-  // Configuración de los pasos
+  const registerMutation = useRegister();
+  const submitPhoneMutation = useSubmitPhone();
+  const verifyOtpMutation = useVerifyOtp();
+  const uploadIneMutation = useUploadIne();
+  const updateProfileMutation = useUpdateProfile();
+
+  const isLoading = 
+    registerMutation.isPending ||
+    submitPhoneMutation.isPending ||
+    verifyOtpMutation.isPending ||
+    uploadIneMutation.isPending ||
+    updateProfileMutation.isPending;
+
   const steps: Record<StepKey, StepConfig> = {
+    "account": {
+      title: "Crea tu cuenta",
+      subtitle: "Necesitamos tu correo y una contraseña segura"
+    },
+    "phone": {
+      title: "Número de Teléfono",
+      subtitle: "Ingresa tu número para enviarte un código de verificación"
+    },
+    "otp": {
+      title: "Verificación",
+      subtitle: "Introduce el código que te enviamos por SMS"
+    },
     "name": {
       title: "¿Cómo te llamas?",
-      subtitle: "Introduce tus nombres y apellidos"
+      subtitle: "Introduce tus nombres y apellidos completos"
     },
     "ine": {
-      title: "Identificación oficial",
-      subtitle: "Sube una foto de tu INE por ambos lados"
-    },
-    "curp": {
-      title: "Datos de identidad",
-      subtitle: "Introduce tu CURP"
-    },
-    "address": {
-      title: "¿Dónde vives?",
-      subtitle: "Introduce tu dirección completa"
-    },
-    "address-document": {
-      title: "Comprobante de domicilio",
-      subtitle: "Sube un comprobante reciente (no mayor a 3 meses)"
+      title: "Identificación Oficial (INE)",
+      subtitle: "Sube una foto clara de tu INE por ambos lados"
     },
     "review": {
-      title: "Revisa tus datos",
-      subtitle: "Confirma que toda la información sea correcta"
+      title: "Confirma tus datos",
+      subtitle: "Revisa y corrige tus datos antes de continuar"
+    },
+    "bureauConsent": {
+      title: "Autorización buró de crédito",
+      subtitle: "Autoriza la consulta a buró de crédito para continuar"
+    },
+    "done": {
+      title: "¡Listo!",
+      subtitle: "Tu registro se ha completado exitosamente."
     }
   };
 
-  // Orden de los pasos
-  const stepOrder: StepKey[] = ["name", "ine", "curp", "address", "address-document", "review"];
-  
-  // Índice del paso actual
+  const stepOrder: StepKey[] = ["account", "phone", "otp", "name", "ine", "review", "bureauConsent", "done"];
+
   const currentStepIndex = stepOrder.indexOf(currentStep);
-  
-  // Manejar cambio de campos
+
   const handleChange = (field: keyof OnboardingData, value: string) => {
     setUserData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => ({ ...prev, [field]: "" }));
+    setApiError(null);
   };
 
-  // Manejar cambio de documentos
-  const handleFileChange = (field: "ineDocument" | "addressDocument", file: File | undefined) => {
+  const handleFileChange = (field: "ineFrontFile" | "ineBackFile", file: File | undefined) => {
     setUserData(prev => ({ ...prev, [field]: file }));
     setErrors(prev => ({ ...prev, [field]: "" }));
+    setApiError(null);
   };
 
-  // Validar el paso actual
   const validateCurrentStep = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
+    const newErrors: Partial<Record<keyof OnboardingData, string>> = {};
+    let isValid = true;
+
     switch (currentStep) {
+      case "account":
+        if (!userData.email.trim() || !/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(userData.email)) {
+          newErrors.email = "Por favor, introduce un correo válido";
+          isValid = false;
+        }
+        if (!userData.password || userData.password.length < 8) { 
+          newErrors.password = "La contraseña debe tener al menos 8 caracteres";
+          isValid = false;
+        }
+        if (userData.password !== userData.confirmPassword) {
+          newErrors.confirmPassword = "Las contraseñas no coinciden";
+          isValid = false;
+        }
+        break;
+      case "phone":
+        if (!userData.phoneNumber.trim() || !/^\d{10}$/.test(userData.phoneNumber)) {
+          newErrors.phoneNumber = "Por favor, introduce un número de teléfono válido (10 dígitos)";
+          isValid = false;
+        }
+        break;
+      case "otp":
+        if (!userData.otp.trim() || !/^\d{6}$/.test(userData.otp)) {
+          newErrors.otp = "Por favor, introduce el código de 6 dígitos";
+          isValid = false;
+        }
+        break;
       case "name":
-        if (!userData.firstName.trim()) {
-          newErrors.firstName = "Por favor, introduce tu primer nombre";
-        }
-        // Segundo nombre puede ser opcional, pero puedes descomentar para hacerlo obligatorio
-        // if (!userData.middleName.trim()) {
-        //   newErrors.middleName = "Por favor, introduce tu segundo nombre";
-        // }
-        if (!userData.lastName.trim()) {
-          newErrors.lastName = "Por favor, introduce tu apellido paterno";
-        }
-        if (!userData.secondLastName.trim()) {
-          newErrors.secondLastName = "Por favor, introduce tu apellido materno";
-        }
+        if (!userData.firstName.trim()) { newErrors.firstName = "Introduce tu primer nombre"; isValid = false; }
+        if (!userData.lastName.trim()) { newErrors.lastName = "Introduce tu apellido paterno"; isValid = false; }
+        if (!userData.motherLastName.trim()) { newErrors.motherLastName = "Introduce tu apellido materno"; isValid = false; }
         break;
       case "ine":
-        if (!userData.ineDocument) {
-          newErrors.ineDocument = "Por favor, sube una foto de tu INE";
-        }
-        break;
-      case "curp":
-        if (!userData.curp.trim()) {
-          newErrors.curp = "Por favor, introduce tu CURP";
-        }
-        break;
-      case "address":
-        if (!userData.street.trim()) {
-          newErrors.street = "Por favor, introduce la calle";
-        }
-        if (!userData.number.trim()) {
-          newErrors.number = "Por favor, introduce el número";
-        }
-        if (!userData.postalCode.trim()) {
-          newErrors.postalCode = "Por favor, introduce el código postal";
-        }
-        if (!userData.city.trim()) {
-          newErrors.city = "Por favor, introduce la ciudad";
-        }
-        if (!userData.state.trim()) {
-          newErrors.state = "Por favor, introduce el estado o provincia";
-        }
-        break;
-      case "address-document":
-        if (!userData.addressDocument) {
-          newErrors.addressDocument = "Por favor, sube un comprobante de domicilio";
-        }
+        if (!userData.ineFrontFile) { newErrors.ineFrontFile = "Sube la foto frontal de tu INE"; isValid = false; }
+        if (!userData.ineBackFile) { newErrors.ineBackFile = "Sube la foto trasera de tu INE"; isValid = false; }
         break;
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return isValid;
   };
 
-  // Navegar al siguiente paso
-  const goToNextStep = () => {
-    if (validateCurrentStep()) {
-      const nextIndex = currentStepIndex + 1;
-      if (nextIndex < stepOrder.length) {
-        setCurrentStep(stepOrder[nextIndex]);
-      } else {
-        // Si hemos completado todos los pasos
-        onComplete(userData);
+  const goToNextStep = async () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+    setApiError(null);
+
+    const nextStepIndex = currentStepIndex + 1;
+    const moveToNext = () => {
+      if (nextStepIndex < stepOrder.length) {
+        setCurrentStep(stepOrder[nextStepIndex]);
       }
+    };
+
+    const handleError = (error: any, defaultMessage: string) => {
+      console.error(`Error in step ${currentStep}:`, error);
+      const message = error?.response?.data?.error || error?.message || defaultMessage;
+      setApiError(message);
+    };
+
+    switch (currentStep) {
+      case "account":
+        registerMutation.mutate({ email: userData.email, password: userData.password }, {
+          onSuccess: () => moveToNext(),
+          onError: (err) => handleError(err, "Error al crear la cuenta.")
+        });
+        break;
+      case "phone":
+        submitPhoneMutation.mutate(userData.phoneNumber, {
+          onSuccess: () => moveToNext(), 
+          onError: (err) => handleError(err, "Error al enviar el número de teléfono.")
+        });
+        break;
+      case "otp":
+        verifyOtpMutation.mutate({ phoneNumber: userData.phoneNumber, otp: userData.otp }, {
+          onSuccess: () => moveToNext(), 
+          onError: (err) => handleError(err, "Error al verificar el código OTP.")
+        });
+        break;
+      case "name": 
+        moveToNext();
+        break;
+      case "ine":
+        if (userData.ineFrontFile && userData.ineBackFile) {
+          uploadIneMutation.mutate({ ineFrontFile: userData.ineFrontFile, ineBackFile: userData.ineBackFile }, {
+            onSuccess: (data) => {
+              // Guardar los datos procesados para revisión
+              setReviewProfile(data);
+              setCurrentStep("review");
+            },
+            onError: (err) => handleError(err, "Error al subir los archivos INE.")
+          });
+        }
+        break;
+      case "review":
+        // Al confirmar datos, avanzar a autorización de buró
+        moveToNext();
+        break;
+      case "bureauConsent":
+        // Aquí podrías hacer el request de autorización si es necesario
+        moveToNext();
+        break;
+      case "done":
+        onComplete();
+        break;
     }
   };
 
-  // Navegar al paso anterior
   const goToPreviousStep = () => {
     const prevIndex = currentStepIndex - 1;
     if (prevIndex >= 0) {
@@ -175,315 +258,224 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
     }
   };
 
-  // Renderizar el contenido según el paso actual
   const renderStepContent = () => {
-    switch (currentStep) {
-      case "name":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-sm font-medium">
-                Primer nombre
-              </Label>
-              <Input
-                id="firstName"
-                placeholder="Ej. Juan"
-                value={userData.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
-                className={`mobile-input ${errors.firstName ? "border-destructive" : ""}`}
-              />
-              {errors.firstName && <p className="text-destructive text-sm">{errors.firstName}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="middleName" className="text-sm font-medium">
-                Segundo nombre
-              </Label>
-              <Input
-                id="middleName"
-                placeholder="Ej. Pablo"
-                value={userData.middleName}
-                onChange={(e) => handleChange("middleName", e.target.value)}
-                className={`mobile-input ${errors.middleName ? "border-destructive" : ""}`}
-              />
-              {errors.middleName && <p className="text-destructive text-sm">{errors.middleName}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-sm font-medium">
-                Apellido paterno
-              </Label>
-              <Input
-                id="lastName"
-                placeholder="Ej. Pérez"
-                value={userData.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
-                className={`mobile-input ${errors.lastName ? "border-destructive" : ""}`}
-              />
-              {errors.lastName && <p className="text-destructive text-sm">{errors.lastName}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="secondLastName" className="text-sm font-medium">
-                Apellido materno
-              </Label>
-              <Input
-                id="secondLastName"
-                placeholder="Ej. García"
-                value={userData.secondLastName}
-                onChange={(e) => handleChange("secondLastName", e.target.value)}
-                className={`mobile-input ${errors.secondLastName ? "border-destructive" : ""}`}
-              />
-              {errors.secondLastName && <p className="text-destructive text-sm">{errors.secondLastName}</p>}
-            </div>
-          </div>
-        );
-      
-      case "ine":
-        return (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-primary/20 rounded-xl p-6 text-center">
-              <div className="flex justify-center mb-3">
-                <div className="bg-primary/10 rounded-full p-3">
-                  <Upload className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-              
-              <p className="text-sm mb-3">
-                Sube una foto clara de tu INE por ambos lados
-              </p>
-              
-              <Button 
-                variant="outline" 
-                className="mobile-button border-primary/40 text-primary mb-2"
-                type="button"
-                onClick={() => {
-                  // Simular selección de archivo para demo
-                  const mockFile = new File([""], "ine-frente.jpg", { type: "image/jpeg" });
-                  handleFileChange("ineDocument", mockFile);
-                }}
-              >
-                <Camera className="h-4 w-4 mr-2" /> Tomar foto
-              </Button>
-              <p className="text-xs text-muted-foreground">O</p>
-              <input
-                type="file"
-                id="ineFile"
-                accept="image/*,.pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  handleFileChange("ineDocument", file);
-                }}
-              />
-              <Button 
-                variant="link" 
-                type="button"
-                onClick={() => document.getElementById('ineFile')?.click()}
-                className="h-auto text-xs"
-              >
-                Seleccionar archivo
-              </Button>
-              
-              {userData.ineDocument && (
-                <div className="mt-2 bg-accent rounded-lg p-2 flex items-center">
-                  <CheckIcon className="h-4 w-4 text-primary mr-2" />
-                  <span className="text-sm truncate">{userData.ineDocument.name || "ID-documento.jpg"}</span>
-                </div>
-              )}
-              
-              {errors.ineDocument && <p className="text-destructive text-sm mt-2">{errors.ineDocument}</p>}
-            </div>
-          </div>
-        );
-      
-      case "curp":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="curp" className="text-sm font-medium">
-                CURP
-              </Label>
-              <Input
-                id="curp"
-                placeholder="Ej. MELM800101HDFNNS09"
-                value={userData.curp}
-                onChange={(e) => handleChange("curp", e.target.value.toUpperCase())}
-                className={`mobile-input ${errors.curp ? "border-destructive" : ""}`}
-              />
-              <p className="text-xs text-muted-foreground">
-                La Clave Única de Registro de Población consta de 18 caracteres
-              </p>
-              {errors.curp && <p className="text-destructive text-sm">{errors.curp}</p>}
-            </div>
-          </div>
-        );
-      
-      case "address":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="street" className="text-sm font-medium">Calle</Label>
-              <Input
-                id="street"
-                placeholder="Ej. Av. Reforma"
-                value={userData.street}
-                onChange={(e) => handleChange("street", e.target.value)}
-                className={`mobile-input ${errors.street ? "border-destructive" : ""}`}
-              />
-              {errors.street && <p className="text-destructive text-sm">{errors.street}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="number" className="text-sm font-medium">Número</Label>
-              <Input
-                id="number"
-                placeholder="Ej. 123"
-                value={userData.number}
-                onChange={(e) => handleChange("number", e.target.value)}
-                className={`mobile-input ${errors.number ? "border-destructive" : ""}`}
-              />
-              {errors.number && <p className="text-destructive text-sm">{errors.number}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="postalCode" className="text-sm font-medium">Código postal</Label>
-              <Input
-                id="postalCode"
-                placeholder="Ej. 12345"
-                value={userData.postalCode}
-                onChange={(e) => handleChange("postalCode", e.target.value)}
-                className={`mobile-input ${errors.postalCode ? "border-destructive" : ""}`}
-              />
-              {errors.postalCode && <p className="text-destructive text-sm">{errors.postalCode}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="city" className="text-sm font-medium">Ciudad</Label>
-              <Input
-                id="city"
-                placeholder="Ej. Ciudad de México"
-                value={userData.city}
-                onChange={(e) => handleChange("city", e.target.value)}
-                className={`mobile-input ${errors.city ? "border-destructive" : ""}`}
-              />
-              {errors.city && <p className="text-destructive text-sm">{errors.city}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state" className="text-sm font-medium">Estado/Provincia</Label>
-              <Input
-                id="state"
-                placeholder="Ej. CDMX"
-                value={userData.state}
-                onChange={(e) => handleChange("state", e.target.value)}
-                className={`mobile-input ${errors.state ? "border-destructive" : ""}`}
-              />
-              {errors.state && <p className="text-destructive text-sm">{errors.state}</p>}
-            </div>
-          </div>
-        );
-      
-      case "address-document":
-        return (
-          <div className="space-y-4">
-            <div className="border-2 border-dashed border-primary/20 rounded-xl p-6 text-center">
-              <div className="flex justify-center mb-3">
-                <div className="bg-primary/10 rounded-full p-3">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-              
-              <p className="text-sm mb-3">
-                Sube un comprobante de domicilio reciente (luz, agua, teléfono)
-              </p>
-              
-              <Button 
-                variant="outline" 
-                className="mobile-button border-primary/40 text-primary mb-2"
-                type="button"
-                onClick={() => {
-                  // Simular selección de archivo para demo
-                  const mockFile = new File([""], "comprobante-luz.pdf", { type: "application/pdf" });
-                  handleFileChange("addressDocument", mockFile);
-                }}
-              >
-                <Camera className="h-4 w-4 mr-2" /> Tomar foto
-              </Button>
-              
-              <p className="text-xs text-muted-foreground">O</p>
-              
-              <input
-                type="file"
-                id="addressFile"
-                accept="image/*,.pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  handleFileChange("addressDocument", file);
-                }}
-              />
-              <Button 
-                variant="link" 
-                type="button"
-                onClick={() => document.getElementById('addressFile')?.click()}
-                className="h-auto text-xs"
-              >
-                Seleccionar archivo
-              </Button>
-              
-              {userData.addressDocument && (
-                <div className="mt-2 bg-accent rounded-lg p-2 flex items-center">
-                  <CheckIcon className="h-4 w-4 text-primary mr-2" />
-                  <span className="text-sm truncate">{userData.addressDocument.name || "comprobante.pdf"}</span>
-                </div>
-              )}
-              
-              {errors.addressDocument && <p className="text-destructive text-sm mt-2">{errors.addressDocument}</p>}
-            </div>
-          </div>
-        );
-      
-      case "review":
-        return (
-          <div className="space-y-4">
-            <div className="bg-accent rounded-lg p-4 space-y-3">
-              <div>
-                <p className="text-xs text-muted-foreground">Nombre completo</p>
-                <p className="font-medium">{`${userData.firstName} ${userData.middleName} ${userData.lastName} ${userData.secondLastName}`.replace(/ +/g, " ").trim()}</p>
-              </div>
-              
-              <div>
-                <p className="text-xs text-muted-foreground">CURP</p>
-                <p className="font-medium">{userData.curp}</p>
-              </div>
-              
-              <div>
-                <p className="text-xs text-muted-foreground">Dirección</p>
-                <p className="font-medium">
-                  {`${userData.street} ${userData.number}, CP ${userData.postalCode}, ${userData.city}, ${userData.state}`.replace(/ +/g, " ").trim()}
-                </p>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <p className="text-xs text-muted-foreground">INE:</p>
-                <div className="bg-primary/10 py-1 px-2 rounded-full flex items-center">
-                  <CheckIcon className="h-3 w-3 text-primary mr-1" />
-                  <span className="text-xs">Verificado</span>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <p className="text-xs text-muted-foreground">Comprobante de domicilio:</p>
-                <div className="bg-primary/10 py-1 px-2 rounded-full flex items-center">
-                  <CheckIcon className="h-3 w-3 text-primary mr-1" />
-                  <span className="text-xs">Verificado</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
+    if (currentStep === "review") {
+      return (
+        <ProfileReview
+          profile={reviewProfile || {}}
+          onComplete={() => goToNextStep()}
+        />
+      );
     }
+    if (currentStep === "bureauConsent") {
+      return (
+        <div className="space-y-6 text-center max-w-md mx-auto">
+          <h3 className="text-xl font-semibold">Autorización para consultar buró de crédito</h3>
+          <p className="text-muted-foreground">Para continuar con tu registro, necesitamos tu autorización para consultar tu historial crediticio en buró. Esta consulta no afecta tu score.</p>
+          <Button className="w-full h-12 mt-6" onClick={goToNextStep}>Autorizo consulta a buró</Button>
+        </div>
+      );
+    }
+    if (currentStep === "done") {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[250px] text-center">
+          <h3 className="text-2xl font-bold text-primary mb-2">¡Registro completo!</h3>
+          <p className="text-muted-foreground mb-6">Gracias por registrarte. Pronto nos pondremos en contacto contigo.</p>
+          <CheckIcon className="h-12 w-12 text-green-500 mb-4" />
+        </div>
+      );
+    }
+    return (
+      <form onSubmit={(e) => { e.preventDefault(); goToNextStep(); }} className="space-y-4">
+        {apiError && (
+          <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4 text-center">
+            {apiError}
+          </div>
+        )}
+
+        {(() => {
+          switch (currentStep) {
+            case "account":
+              return (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Correo electrónico</Label>
+                    <Input 
+                      id="email" 
+                      type="email" 
+                      value={userData.email}
+                      onChange={(e) => handleChange("email", e.target.value)}
+                      placeholder="tu@correo.com"
+                      className={`${errors.email ? "border-destructive" : ""}`}
+                      autoComplete="email"
+                    />
+                    {errors.email && <p className="text-destructive text-sm mt-1">{errors.email}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Contraseña</Label>
+                    <Input 
+                      id="password" 
+                      type="password"
+                      value={userData.password}
+                      onChange={(e) => handleChange("password", e.target.value)}
+                      placeholder="Mínimo 8 caracteres"
+                      className={`${errors.password ? "border-destructive" : ""}`}
+                      autoComplete="new-password"
+                    />
+                    {errors.password && <p className="text-destructive text-sm mt-1">{errors.password}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                    <Input 
+                      id="confirmPassword" 
+                      type="password"
+                      value={userData.confirmPassword}
+                      onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                      placeholder="Repite la contraseña"
+                      className={`${errors.confirmPassword ? "border-destructive" : ""}`}
+                      autoComplete="new-password"
+                    />
+                    {errors.confirmPassword && <p className="text-destructive text-sm mt-1">{errors.confirmPassword}</p>}
+                  </div>
+                </>
+              );
+            case "phone":
+              return (
+                <div className="space-y-2">
+                  <Label htmlFor="phoneNumber">Número de teléfono</Label>
+                  <Input 
+                    id="phoneNumber" 
+                    type="tel" 
+                    value={userData.phoneNumber}
+                    onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                    placeholder="10 dígitos"
+                    maxLength={10}
+                    className={`${errors.phoneNumber ? "border-destructive" : ""}`}
+                    autoComplete="tel"
+                  />
+                  {errors.phoneNumber && <p className="text-destructive text-sm mt-1">{errors.phoneNumber}</p>}
+                </div>
+              );
+            case "otp":
+              return (
+                <div className="space-y-2">
+                  <Label htmlFor="otp">Código de verificación (SMS)</Label>
+                  <Input 
+                    id="otp" 
+                    type="text" 
+                    inputMode="numeric" 
+                    pattern="[0-9]*" 
+                    value={userData.otp}
+                    onChange={(e) => handleChange("otp", e.target.value)}
+                    placeholder="6 dígitos"
+                    maxLength={6}
+                    className={`${errors.otp ? "border-destructive" : ""}`}
+                    autoComplete="one-time-code"
+                  />
+                  {errors.otp && <p className="text-destructive text-sm mt-1">{errors.otp}</p>}
+                </div>
+              );
+            case "name":
+              return (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">Primer Nombre</Label>
+                    <Input id="firstName" value={userData.firstName} onChange={(e) => handleChange("firstName", e.target.value)} className={`${errors.firstName ? "border-destructive" : ""}`} autoComplete="given-name" />
+                    {errors.firstName && <p className="text-destructive text-sm mt-1">{errors.firstName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">Segundo Nombre (Opcional)</Label>
+                    <Input id="middleName" value={userData.middleName} onChange={(e) => handleChange("middleName", e.target.value)} autoComplete="additional-name" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Apellido Paterno</Label>
+                    <Input id="lastName" value={userData.lastName} onChange={(e) => handleChange("lastName", e.target.value)} className={`${errors.lastName ? "border-destructive" : ""}`} autoComplete="family-name" />
+                    {errors.lastName && <p className="text-destructive text-sm mt-1">{errors.lastName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="motherLastName">Apellido Materno</Label>
+                    <Input id="motherLastName" value={userData.motherLastName} onChange={(e) => handleChange("motherLastName", e.target.value)} className={`${errors.motherLastName ? "border-destructive" : ""}`} autoComplete="family-name" />
+                    {errors.motherLastName && <p className="text-destructive text-sm mt-1">{errors.motherLastName}</p>}
+                  </div>
+                </>
+              );
+            case "ine": 
+              return (
+                <>
+                  <div className="border-2 border-dashed border-primary/20 rounded-xl p-4 text-center space-y-2">
+                    <Label htmlFor="ineFrontFile" className="text-sm font-medium block">INE (Frente)</Label>
+                    <input
+                      type="file"
+                      id="ineFrontFile"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        handleFileChange("ineFrontFile", file);
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      type="button"
+                      onClick={() => document.getElementById('ineFrontFile')?.click()}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" /> {userData.ineFrontFile ? 'Cambiar Foto' : 'Subir Foto Frontal'}
+                    </Button>
+                    {userData.ineFrontFile && (
+                      <div className="mt-2 bg-accent rounded-lg p-2 flex items-center justify-center text-xs">
+                        <CheckIcon className="h-4 w-4 text-primary mr-1 flex-shrink-0" />
+                        <span className="truncate">{userData.ineFrontFile.name}</span>
+                      </div>
+                    )}
+                    {errors.ineFrontFile && <p className="text-destructive text-sm mt-1">{errors.ineFrontFile}</p>}
+                  </div>
+
+                  <div className="border-2 border-dashed border-primary/20 rounded-xl p-4 text-center space-y-2">
+                    <Label htmlFor="ineBackFile" className="text-sm font-medium block">INE (Reverso)</Label>
+                    <input
+                      type="file"
+                      id="ineBackFile"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        handleFileChange("ineBackFile", file);
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      type="button"
+                      onClick={() => document.getElementById('ineBackFile')?.click()}
+                      className="w-full"
+                    >
+                       <Upload className="h-4 w-4 mr-2" /> {userData.ineBackFile ? 'Cambiar Foto' : 'Subir Foto Trasera'}
+                    </Button>
+                     {userData.ineBackFile && (
+                      <div className="mt-2 bg-accent rounded-lg p-2 flex items-center justify-center text-xs">
+                        <CheckIcon className="h-4 w-4 text-primary mr-1 flex-shrink-0" />
+                        <span className="truncate">{userData.ineBackFile.name}</span>
+                      </div>
+                    )}
+                    {errors.ineBackFile && <p className="text-destructive text-sm mt-1">{errors.ineBackFile}</p>}
+                  </div>
+                </>
+              );
+            default:
+              return <div>Paso desconocido</div>;
+          }
+        })()}
+      </form>
+    );
   };
 
-  // Calcular el progreso actual
   const progress = ((currentStepIndex + 1) / stepOrder.length) * 100;
 
   return (
     <div className="animate-in fade-in-50 duration-300">
+      {uploadIneMutation.isPending && currentStep === "ine" && (
+        <ProcessingOverlay message="Estamos procesando tu INE" />
+      )}
       <div className="text-center mb-4">
         <h2 className="text-xl font-bold text-primary">
           {steps[currentStep].title}
@@ -493,7 +485,6 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         </p>
       </div>
       
-      {/* Indicador de progreso */}
       <div className="w-full h-1.5 bg-muted rounded-full mb-6">
         <div 
           className="h-full bg-gradient-to-r from-primary/80 to-primary rounded-full transition-all duration-300"
@@ -523,12 +514,16 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
               className="flex-1 mobile-button h-12"
               onClick={goToNextStep}
               type="button"
+              disabled={isLoading} 
             >
-              {currentStep === "review" ? "Completar" : (
-                <>
-                  Siguiente <ArrowRightIcon className="h-4 w-4 ml-2" />
-                </>
-              )}
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {currentStep === "bureauConsent" 
+                ? (isLoading ? 'Procesando...' : 'Continuar') 
+                : (isLoading ? 'Procesando...' : 
+                  <>
+                    Siguiente <ArrowRightIcon className="h-4 w-4 ml-2" />
+                  </>
+                )}
             </Button>
           </div>
         </CardContent>

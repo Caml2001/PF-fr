@@ -1,0 +1,31 @@
+Primer paso:
+* Número de teléfono
+* Mail
+* Contraseña
+
+Segundo paso:
+* OTP
+
+Tercer paso:
+* Primer Nombre
+* Segundo Nombre
+* Apellido Paterno
+* Apellido Materno
+
+Cuarto paso:
+* INE frontal
+* INE trasera
+
+Quinto paso:
+* CURP
+
+Sexto paso:
+* Calle
+* Numero
+* Colonia
+* Municipio
+* Estado
+* Codigo Postal
+
+Séptimo paso:
+* Comprobante de domicilio

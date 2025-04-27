@@ -1,64 +1,55 @@
-import { useState } from "react";
-import { Card, CardContent } from "./ui/card";
-import { Input } from "./ui/input";
+import React, { useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { ContentContainer, PageContainer, SectionContainer } from "./Layout";
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
+import { useLocation } from 'wouter';
+import { useLogin } from '../hooks/useLogin';
+import { Card, CardContent } from "./ui/card";
+import { PageContainer, ContentContainer, SectionContainer } from "./Layout";
+
+// Zod schema for validation
+const LoginSchema = z.object({
+  email: z.string().min(1, 'Por favor ingresa un correo válido').email('Por favor ingresa un correo válido'),
+  password: z.string().min(1, 'La contraseña es obligatoria'),
+});
+
+// Define the form data type from the schema
+type LoginFormData = z.infer<typeof LoginSchema>;
 
 interface AuthFormProps {
   onLogin: (username: string) => void;
   onStartSignup: () => void;
 }
 
-export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
+const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
+  const [location, setLocation] = useLocation(); 
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
-  const [loginData, setLoginData] = useState({
-    username: "",
-    password: ""
-  });
-  const [errors, setErrors] = useState({
-    login: { username: "", password: "" }
+
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+    resolver: zodResolver(LoginSchema),
   });
 
-  // Validar correo o teléfono
-  const validateContact = (value: string) => {
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    const isValidPhone = /^\d{10}$/.test(value);
-    return isValidEmail || isValidPhone;
+  const loginMutation = useLogin();
+
+  const handleLoginSubmit: SubmitHandler<LoginFormData> = async (data) => {
+    loginMutation.mutate(data, {
+      onSuccess: (response) => {
+        console.log('Login successful via hook:', response);
+        onLogin(response.user?.email || data.email); 
+      },
+      onError: (error) => {
+        console.error('Login failed via hook:', error);
+      },
+    });
   };
 
-  // Manejar cambios en el formulario de login
-  const handleLoginChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target;
-    setLoginData(prev => ({ ...prev, [id]: value }));
-    setErrors(prev => ({
-      ...prev,
-      login: { ...prev.login, [id]: "" }
-    }));
-  };
-
-  // Manejar el envío del formulario de login
-  const handleLoginSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newErrors = { username: "", password: "" };
-    let isValid = true;
-    
-    if (!loginData.username.trim() || !validateContact(loginData.username.trim())) {
-      newErrors.username = "Por favor ingresa un correo o teléfono válido";
-      isValid = false;
-    }
-    
-    if (!loginData.password.trim()) {
-      newErrors.password = "La contraseña es obligatoria";
-      isValid = false;
-    }
-    
-    if (isValid) {
-      onLogin(loginData.username);
-    } else {
-      setErrors(prev => ({ ...prev, login: newErrors }));
-    }
+  const handleRegisterClick = () => {
+    setActiveTab("signup");
+    onStartSignup(); 
   };
 
   return (
@@ -81,20 +72,28 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
             <CardContent className="p-6">
               {activeTab === "login" ? (
                 <>
-                  <form onSubmit={handleLoginSubmit}>
+                  <form onSubmit={handleSubmit(handleLoginSubmit)}>
+                    {loginMutation.error && (
+                      <Alert variant="destructive" className="mb-4">
+                        <AlertTitle>Error de Inicio de Sesión</AlertTitle>
+                        <AlertDescription>
+                          {loginMutation.error.message || "Ocurrió un error inesperado."}
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    
                     <SectionContainer>
-                      <Label htmlFor="username" className="text-base font-medium block mb-2">
-                        Correo electrónico o teléfono
+                      <Label htmlFor="email" className="text-base font-medium block mb-2">
+                        Correo electrónico
                       </Label>
                       <Input 
-                        id="username" 
+                        id="email" 
                         type="text" 
-                        placeholder="ejemplo@correo.com o 5555555555"
-                        value={loginData.username}
-                        onChange={handleLoginChange}
-                        className={`rounded-xl py-6 text-base ${errors.login.username ? "border-destructive" : ""}`}
+                        placeholder="ejemplo@correo.com"
+                        {...register("email")}
+                        className={`rounded-xl py-6 text-base ${errors.email ? "border-destructive" : ""}`}
                       />
-                      {errors.login.username && <p className="text-destructive text-sm mt-2">{errors.login.username}</p>}
+                      {errors.email && <p className="text-destructive text-sm mt-2">{errors.email.message}</p>}
                     </SectionContainer>
                     
                     <SectionContainer>
@@ -105,15 +104,18 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
                         id="password" 
                         type="password" 
                         placeholder="Tu contraseña"
-                        value={loginData.password}
-                        onChange={handleLoginChange}
-                        className={`rounded-xl py-6 text-base ${errors.login.password ? "border-destructive" : ""}`}
+                        {...register("password")}
+                        className={`rounded-xl py-6 text-base ${errors.password ? "border-destructive" : ""}`}
                       />
-                      {errors.login.password && <p className="text-destructive text-sm mt-2">{errors.login.password}</p>}
+                      {errors.password && <p className="text-destructive text-sm mt-2">{errors.password.message}</p>}
                     </SectionContainer>
-                    
-                    <Button type="submit" className="w-full py-6 text-base rounded-xl mt-2">
-                      Iniciar sesión
+
+                    <Button 
+                      type="submit" 
+                      className="w-full py-6 text-base rounded-xl mt-2" 
+                      disabled={loginMutation.isPending}
+                    >
+                      {loginMutation.isPending ? "Iniciando sesión..." : "Iniciar sesión"}
                     </Button>
                     
                     <div className="mt-6 text-center">
@@ -122,7 +124,7 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
                         <Button 
                           variant="link" 
                           className="p-0 h-auto text-primary text-base"
-                          onClick={() => setActiveTab("signup")}
+                          onClick={handleRegisterClick}
                         >
                           Crear cuenta
                         </Button>
@@ -186,4 +188,6 @@ export default function AuthForm({ onLogin, onStartSignup }: AuthFormProps) {
       </ContentContainer>
     </PageContainer>
   );
-}
+};
+
+export default AuthForm;
