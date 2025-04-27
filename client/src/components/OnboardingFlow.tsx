@@ -13,6 +13,8 @@ import { type SignupData } from '../lib/api/authService';
 import ProfileReview from '../components/ProfileReview';
 import ProcessingOverlay from "./ProcessingOverlay";
 import apiClient from '../lib/api/axios';
+import { login } from '../lib/api/authService';
+import { fetchOnboardingStatus } from '../lib/api/onboardingService';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -213,7 +215,49 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
       case "account":
         registerMutation.mutate({ email: userData.email, password: userData.password }, {
           onSuccess: () => moveToNext(),
-          onError: (err) => handleError(err, "Error al crear la cuenta.")
+          onError: async (err: any) => {
+            // Manejo de error para usuario ya registrado
+            const errorMsg = err?.response?.data?.error || err?.message || '';
+            if (errorMsg.includes('User already registered')) {
+              // Intentar login automático
+              try {
+                const loginResp = await login({ email: userData.email, password: userData.password });
+                // Guardar token manualmente
+                if (loginResp.session?.access_token) {
+                  localStorage.setItem('authToken', loginResp.session.access_token);
+                }
+                // Esperar un poco para que el backend termine de guardar sesión y datos
+                await new Promise(res => setTimeout(res, 700));
+                // Si login exitoso, consultar status y saltar al paso correspondiente
+                const statusResp = await fetchOnboardingStatus();
+                const statusToStep: Record<string, StepKey> = {
+                  PHONE_PENDING: "phone",
+                  OTP_PENDING: "otp",
+                  REGISTERED_BASIC: "name",
+                  PROFILE_PENDING: "ine",
+                  INE_PENDING: "review",
+                  INE_SUBMITTED: "done",
+                  PROFILE_COMPLETED: "done"
+                };
+                const nextStep = statusToStep[statusResp.status];
+                if (nextStep) {
+                  setCurrentStep(nextStep);
+                  // Prellenar datos si están disponibles
+                  if (statusResp.details?.profile) {
+                    setUserData((prev) => ({ ...prev, ...statusResp.details.profile }));
+                  }
+                }
+              } catch (loginErr: any) {
+                if (loginErr.message.includes('Invalid login credentials')) {
+                  setApiError('Las credenciales no son válidas. Por favor revisa tu contraseña.');
+                } else {
+                  setApiError('No se pudo iniciar sesión automáticamente. Intenta de nuevo o contacta soporte.');
+                }
+              }
+            } else {
+              handleError(err, "Error al crear la cuenta.");
+            }
+          }
         });
         break;
       case "phone":

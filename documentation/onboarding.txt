@@ -2,21 +2,24 @@ Primer paso:
 * Mail
 * Contraseña
 
+
+Petición a /onboarding/status <-- nuevo endpoint para consultar el paso actual
+
 Petición a /auth/signup
-En este punto mi status se creo con "PHONE_PENDING", lo cual es correcto
+OnboardingStatus: "PHONE_PENDING"
 
 Segundo paso:
 * Número de teléfono
 
 Petición a /profile/phone
-En este punto, mi estatus *no cambió*, debería ser "OTP_PENDING"
+OnboardingStatus: "OTP_PENDING"
 
 
 Tercer paso:
 * OTP
 
 Petición a /profile/phone/verify
-En este punto, mi estatus cambio a "REGISTERED_BASIC", lo cual es correcto
+OnboardingStatus: "REGISTERED_BASIC"
 
 Cuarto paso:
 * Primer Nombre
@@ -27,7 +30,7 @@ Cuarto paso:
 * Sexo
 
 Petición a /onboarding/temp
-En este punto, mi estatus cambió a "PROFILE_PENDING", lo cual es correcto
+OnboardingStatus: "PROFILE_PENDING"
 
 
 Quinto paso:
@@ -35,9 +38,9 @@ Quinto paso:
 * INE trasera
 
 Petición a /profile/ine/verify
-En este punto, mi estatus cambió a "INE_PENDING", lo cual es incorrecto, ya que ya subí mi INE.
-En caso de que los datos no sean validos (por que no coinciden), mi estatus debería ser "INE_REVIEW"
-En caso de fallar, debería ser "INE_ERROR"
+OnboardingStatus: "INE_PENDING" (si los datos coinciden)
+OnboardingStatus: "INE_REVIEW" (si los datos no coinciden)
+OnboardingStatus: "INE_ERROR" (si falla)
 
 Sexto paso (confirmar):
 * CURP
@@ -48,3 +51,6 @@ Sexto paso (confirmar):
 * Estado
 * Codigo Postal
 * Consulta a buró (endpoint no existente)
+
+Petición a /onboarding/profile
+OnboardingStatus: "PROFILE_COMPLETED" (no existe actualmente, ignorarlo)
