@@ -1,31 +1,50 @@
 Primer paso:
-* Número de teléfono
 * Mail
 * Contraseña
 
+Petición a /auth/signup
+En este punto mi status se creo con "PHONE_PENDING", lo cual es correcto
+
 Segundo paso:
-* OTP
+* Número de teléfono
+
+Petición a /profile/phone
+En este punto, mi estatus *no cambió*, debería ser "OTP_PENDING"
+
 
 Tercer paso:
+* OTP
+
+Petición a /profile/phone/verify
+En este punto, mi estatus cambio a "REGISTERED_BASIC", lo cual es correcto
+
+Cuarto paso:
 * Primer Nombre
 * Segundo Nombre
 * Apellido Paterno
 * Apellido Materno
+* Fecha de nacimiento
+* Sexo
 
-Cuarto paso:
+Petición a /onboarding/temp
+En este punto, mi estatus cambió a "PROFILE_PENDING", lo cual es correcto
+
+
+Quinto paso:
 * INE frontal
 * INE trasera
 
-Quinto paso:
-* CURP
+Petición a /profile/ine/verify
+En este punto, mi estatus cambió a "INE_PENDING", lo cual es incorrecto, ya que ya subí mi INE.
+En caso de que los datos no sean validos (por que no coinciden), mi estatus debería ser "INE_REVIEW"
+En caso de fallar, debería ser "INE_ERROR"
 
-Sexto paso:
+Sexto paso (confirmar):
+* CURP
 * Calle
 * Numero
 * Colonia
 * Municipio
 * Estado
 * Codigo Postal
-
-Séptimo paso:
-* Comprobante de domicilio
+* Consulta a buró (endpoint no existente)

@@ -12,6 +12,7 @@ import { useUpdateProfile } from '../hooks/useUpdateProfile';
 import { type SignupData } from '../lib/api/authService';
 import ProfileReview from '../components/ProfileReview';
 import ProcessingOverlay from "./ProcessingOverlay";
+import apiClient from '../lib/api/axios';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -28,6 +29,8 @@ export interface OnboardingData {
   middleName: string;
   lastName: string;
   motherLastName: string;
+  birthDate: string;
+  sex: string;
   ineFrontFile?: File;
   ineBackFile?: File;
   curp: string;
@@ -58,6 +61,8 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
     middleName: "",
     lastName: "",
     motherLastName: "",
+    birthDate: "",
+    sex: "",
     ineFrontFile: undefined,
     ineBackFile: undefined,
     curp: "",
@@ -169,8 +174,11 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         break;
       case "name":
         if (!userData.firstName.trim()) { newErrors.firstName = "Introduce tu primer nombre"; isValid = false; }
+        if (!userData.middleName.trim()) { newErrors.middleName = "Introduce tu segundo nombre"; isValid = false; }
         if (!userData.lastName.trim()) { newErrors.lastName = "Introduce tu apellido paterno"; isValid = false; }
         if (!userData.motherLastName.trim()) { newErrors.motherLastName = "Introduce tu apellido materno"; isValid = false; }
+        if (!userData.birthDate) { newErrors.birthDate = "Selecciona tu fecha de nacimiento"; isValid = false; }
+        if (!userData.sex) { newErrors.sex = "Selecciona tu sexo"; isValid = false; }
         break;
       case "ine":
         if (!userData.ineFrontFile) { newErrors.ineFrontFile = "Sube la foto frontal de tu INE"; isValid = false; }
@@ -221,7 +229,19 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
         });
         break;
       case "name": 
-        moveToNext();
+        try {
+          await apiClient.post("/onboarding/temp", {
+            firstName: userData.firstName,
+            middleName: userData.middleName,
+            lastName: userData.lastName,
+            motherLastName: userData.motherLastName,
+            birthDate: userData.birthDate,
+            sex: userData.sex,
+          });
+          moveToNext();
+        } catch (error) {
+          handleError(error, "Error al guardar tus datos personales");
+        }
         break;
       case "ine":
         if (userData.ineFrontFile && userData.ineBackFile) {
@@ -380,22 +400,72 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="firstName">Primer Nombre</Label>
-                    <Input id="firstName" value={userData.firstName} onChange={(e) => handleChange("firstName", e.target.value)} className={`${errors.firstName ? "border-destructive" : ""}`} autoComplete="given-name" />
+                    <Input 
+                      id="firstName" 
+                      value={userData.firstName}
+                      onChange={(e) => handleChange("firstName", e.target.value)}
+                      placeholder="Ej. Juan"
+                      className={errors.firstName ? "border-destructive" : ""}
+                    />
                     {errors.firstName && <p className="text-destructive text-sm mt-1">{errors.firstName}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="middleName">Segundo Nombre (Opcional)</Label>
-                    <Input id="middleName" value={userData.middleName} onChange={(e) => handleChange("middleName", e.target.value)} autoComplete="additional-name" />
+                    <Label htmlFor="middleName">Segundo Nombre</Label>
+                    <Input 
+                      id="middleName" 
+                      value={userData.middleName}
+                      onChange={(e) => handleChange("middleName", e.target.value)}
+                      placeholder="Ej. Carlos"
+                      className={errors.middleName ? "border-destructive" : ""}
+                    />
+                    {errors.middleName && <p className="text-destructive text-sm mt-1">{errors.middleName}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Apellido Paterno</Label>
-                    <Input id="lastName" value={userData.lastName} onChange={(e) => handleChange("lastName", e.target.value)} className={`${errors.lastName ? "border-destructive" : ""}`} autoComplete="family-name" />
+                    <Input 
+                      id="lastName" 
+                      value={userData.lastName}
+                      onChange={(e) => handleChange("lastName", e.target.value)}
+                      placeholder="Ej. Pérez"
+                      className={errors.lastName ? "border-destructive" : ""}
+                    />
                     {errors.lastName && <p className="text-destructive text-sm mt-1">{errors.lastName}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="motherLastName">Apellido Materno</Label>
-                    <Input id="motherLastName" value={userData.motherLastName} onChange={(e) => handleChange("motherLastName", e.target.value)} className={`${errors.motherLastName ? "border-destructive" : ""}`} autoComplete="family-name" />
+                    <Input 
+                      id="motherLastName" 
+                      value={userData.motherLastName}
+                      onChange={(e) => handleChange("motherLastName", e.target.value)}
+                      placeholder="Ej. García"
+                      className={errors.motherLastName ? "border-destructive" : ""}
+                    />
                     {errors.motherLastName && <p className="text-destructive text-sm mt-1">{errors.motherLastName}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birthDate">Fecha de nacimiento</Label>
+                    <Input 
+                      id="birthDate" 
+                      type="date" 
+                      value={userData.birthDate}
+                      onChange={(e) => handleChange("birthDate", e.target.value)}
+                      className={errors.birthDate ? "border-destructive" : ""}
+                    />
+                    {errors.birthDate && <p className="text-destructive text-sm mt-1">{errors.birthDate}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sex">Sexo</Label>
+                    <select
+                      id="sex"
+                      value={userData.sex}
+                      onChange={(e) => handleChange("sex", e.target.value)}
+                      className={`w-full rounded border px-3 py-2 ${errors.sex ? "border-destructive" : "border-input"}`}
+                    >
+                      <option value="">Selecciona</option>
+                      <option value="H">Hombre</option>
+                      <option value="M">Mujer</option>
+                    </select>
+                    {errors.sex && <p className="text-destructive text-sm mt-1">{errors.sex}</p>}
                   </div>
                 </>
               );
