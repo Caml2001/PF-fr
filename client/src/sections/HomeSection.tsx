@@ -28,7 +28,7 @@ interface HomeSectionProps {
 
 export default function HomeSection() {
   // Obtener información de crédito desde el backend
-  const { creditInfo, isLoading, error } = useCreditInfo();
+  const { creditInfo, isLoading, error, refreshSilently } = useCreditInfo();
 
   // Navigation handler using wouter
   const [, setLocation] = useLocation();
