@@ -88,7 +88,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
       return;
     }
 
-    prevLoanIdRef.current = loanId;
+    prevLoanIdRef.current = loanId ?? null;
 
     if (loanId && (!selectedLoan || selectedLoan.id !== loanId)) {
       selectLoan(loanId);
