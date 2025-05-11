@@ -27,7 +27,13 @@ export default function App() {
         fetchOnboardingStatus()
           .then((res) => {
             setOnboardingStatus(res.status);
-            if (res.status === 'complete' || res.status === 'completed') {
+            if (
+              res.status === 'complete' ||
+              res.status === 'completed' ||
+              res.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' ||
+              res.status === 'DUMMY_BUREAU_CHECK_COMPLETED' ||
+              res.status === 'CREDIT_REPORT_AVAILABLE_DUMMY'
+            ) {
               setLocation('/home');
             } else {
               setLocation('/register');
@@ -52,7 +58,13 @@ export default function App() {
       fetchOnboardingStatus()
         .then((res) => {
           setOnboardingStatus(res.status);
-          if (res.status === 'complete' || res.status === 'completed') {
+          if (
+            res.status === 'complete' ||
+            res.status === 'completed' ||
+            res.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' ||
+            res.status === 'DUMMY_BUREAU_CHECK_COMPLETED' ||
+            res.status === 'CREDIT_REPORT_AVAILABLE_DUMMY'
+          ) {
             setLocation('/home');
           } else {
             setLocation('/register');
@@ -100,7 +112,15 @@ export default function App() {
     );
   }
 
-  if (onboardingStatus !== 'complete' && onboardingStatus !== 'completed') {
+  const completedStatuses = [
+    'complete',
+    'completed',
+    'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
+    'DUMMY_BUREAU_CHECK_COMPLETED',
+    'CREDIT_REPORT_AVAILABLE_DUMMY'
+  ];
+
+  if (!completedStatuses.includes(onboardingStatus || '')) {
     return (
       <Router>
         <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
