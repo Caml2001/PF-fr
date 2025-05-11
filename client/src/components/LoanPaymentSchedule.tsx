@@ -12,12 +12,17 @@ interface LoanPaymentScheduleProps {
 }
 
 export default function LoanPaymentSchedule({ loan, onBack }: LoanPaymentScheduleProps) {
-  console.log('LoanPaymentSchedule - loan:', loan);
-  console.log('LoanPaymentSchedule - scheduleItems:', loan.scheduleItems);
+  // Debug logs solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('LoanPaymentSchedule - loan id:', loan.id);
+    console.log('LoanPaymentSchedule - scheduleItems count:', loan.scheduleItems?.length || 0);
+  }
   
   // Comprobar si hay elementos de cronograma disponibles
   if (!loan.scheduleItems || loan.scheduleItems.length === 0) {
-    console.log('LoanPaymentSchedule - No hay items de cronograma disponibles');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('LoanPaymentSchedule - No hay items de cronograma disponibles');
+    }
     return (
       <PageContainer>
         <ContentContainer>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,14 +78,24 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     isInitialized
   } = useLoans();
 
+  // Referencia para evitar cargas duplicadas
+  const prevLoanIdRef = useRef<string | null>(null);
+
   // Efecto para cargar el préstamo seleccionado por ID de ruta
   useEffect(() => {
+    // Prevenir cargas duplicadas del mismo ID
+    if (loanId === prevLoanIdRef.current) {
+      return;
+    }
+
+    prevLoanIdRef.current = loanId;
+
     if (loanId && (!selectedLoan || selectedLoan.id !== loanId)) {
       selectLoan(loanId);
     } else if (!loanId && selectedLoan) {
       clearSelection();
     }
-  }, [loanId, selectedLoan]);
+  }, [loanId]);
 
   // Función para volver a la vista principal de préstamos o a los detalles
   const handleBack = () => {
@@ -98,16 +108,24 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     }
   };
 
-  // Función para mostrar la vista de pagos
+  // Función para mostrar la vista de pagos (solo navegación, no actualiza estados)
   const handleViewPayments = () => {
     if (selectedLoan) {
+      // Prefetch the loan details if needed
+      if (!selectedLoan.payments || selectedLoan.payments.length === 0) {
+        refreshLoans(false); // Silently refresh loans
+      }
       navigate(`/loans/${selectedLoan.id}/payments`);
     }
   };
 
-  // Función para mostrar la tabla de amortización
+  // Función para mostrar la tabla de amortización (solo navegación, no actualiza estados)
   const handleViewPaymentSchedule = () => {
     if (selectedLoan) {
+      // Prefetch the loan schedule if needed
+      if (!selectedLoan.scheduleItems || selectedLoan.scheduleItems.length === 0) {
+        refreshLoans(false); // Silently refresh loans
+      }
       navigate(`/loans/${selectedLoan.id}/schedule`);
     }
   };
@@ -332,9 +350,10 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
   const renderLoanDetails = () => {
     if (!selectedLoan) return null;
     
-    // Log para depuración
-    console.log('Estado del préstamo:', selectedLoan.status);
-    console.log('Préstamo seleccionado:', selectedLoan);
+    // Log solo en desarrollo
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Estado del préstamo:', selectedLoan.status);
+    }
     
     // Calcular totales si no están disponibles en details
     const totalInterest = selectedLoan.details?.totalInterest || 
@@ -547,16 +566,18 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     );
   };
 
-  // Log para depuración
-  console.log('Estados:', {
-    selectedLoan: selectedLoan ? {
-      id: selectedLoan.id,
-      status: selectedLoan.status,
-      scheduleItems: selectedLoan.scheduleItems ? selectedLoan.scheduleItems.length : 0
-    } : null,
-    loanId,
-    view
-  });
+  // Log solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Estados:', {
+      selectedLoan: selectedLoan ? {
+        id: selectedLoan.id,
+        status: selectedLoan.status,
+        scheduleItems: selectedLoan.scheduleItems ? selectedLoan.scheduleItems.length : 0
+      } : null,
+      loanId,
+      view
+    });
+  }
 
   return (
     <PageContainer>

@@ -38,6 +38,17 @@ self.addEventListener('activate', (event) => {
 
 // Interceptar peticiones
 self.addEventListener('fetch', (event) => {
+  const requestUrl = new URL(event.request.url);
+
+  // Si la petición es a nuestra API (comienza con /api/ o /onboarding/), 
+  // la dejamos pasar directamente a la red.
+  // React Query u otra lógica de cliente se encargará de su caché.
+  if (requestUrl.pathname.startsWith('/api/') || requestUrl.pathname.startsWith('/onboarding/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Para otros recursos (assets de la app como HTML, CSS, JS, imágenes), usamos la estrategia cache-first.
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
@@ -45,6 +56,9 @@ self.addEventListener('fetch', (event) => {
         if (response) {
           return response;
         }
+        // Si no está en caché, obtener de la red.
+        // Opcionalmente, podríamos añadir la respuesta al caché aquí si quisiéramos
+        // cachear nuevos assets estáticos dinámicamente, pero para empezar lo mantenemos simple.
         return fetch(event.request);
       })
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getLoans, getLoanById, Loan } from '@/lib/api/loanService';
 
 // Clave para localStorage
@@ -37,8 +37,16 @@ export const useLoans = () => {
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(!!savedLoans && savedLoans.length > 0);
 
+  // Flag to track if we're currently loading data
+  const [isCurrentlyFetching, setIsCurrentlyFetching] = useState(false);
+
   // Cargar todos los préstamos
   const fetchLoans = async (showLoader = !isInitialized) => {
+    // Prevent multiple simultaneous fetches
+    if (isCurrentlyFetching) {
+      return;
+    }
+
     // Si ya tenemos datos, usamos un estado de "refreshing" en lugar de "loading"
     // para evitar mostrar skeletons si ya tenemos contenido
     if (showLoader) {
@@ -46,13 +54,14 @@ export const useLoans = () => {
     } else if (isInitialized) {
       setIsRefreshing(true);
     }
-    
+
     setError(null);
-    
+    setIsCurrentlyFetching(true);
+
     try {
       const loansData = await getLoans();
       setLoans(loansData);
-      
+
       // Actualizar el préstamo seleccionado si es necesario
       if (selectedLoanId) {
         const updatedSelectedLoan = loansData.find(loan => loan.id === selectedLoanId);
@@ -60,10 +69,10 @@ export const useLoans = () => {
           setSelectedLoan(updatedSelectedLoan);
         }
       }
-      
+
       // Guardar en localStorage para futuras sesiones
       saveLoans(loansData);
-      
+
       if (!isInitialized) {
         setIsInitialized(true);
       }
@@ -73,23 +82,33 @@ export const useLoans = () => {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+      setIsCurrentlyFetching(false);
     }
   };
 
+  // Flag para evitar peticiones duplicadas de préstamos individuales
+  const [fetchingLoanIds, setFetchingLoanIds] = useState<{[key: string]: boolean}>({});
+
   // Cargar un préstamo específico por ID
   const fetchLoanById = async (id: string, showLoader = true) => {
+    // Prevenir peticiones duplicadas para el mismo ID
+    if (fetchingLoanIds[id]) {
+      return;
+    }
+
     // Solo mostramos loader si se solicita explícitamente
     if (showLoader) {
       setIsLoading(true);
     }
-    
+
     setError(null);
-    
+    setFetchingLoanIds(prev => ({...prev, [id]: true}));
+
     try {
       const loanData = await getLoanById(id);
       if (loanData) {
         setSelectedLoan(loanData);
-        
+
         // Actualizar este préstamo en el array de préstamos
         setLoans(prevLoans => {
           const updatedLoans = [...prevLoans];
@@ -100,10 +119,10 @@ export const useLoans = () => {
             // Si no existe, lo añadimos
             updatedLoans.push(loanData);
           }
-          
+
           // Guardar en localStorage
           saveLoans(updatedLoans);
-          
+
           return updatedLoans;
         });
       } else {
@@ -114,27 +133,29 @@ export const useLoans = () => {
       console.error(err);
     } finally {
       setIsLoading(false);
+      setFetchingLoanIds(prev => ({...prev, [id]: false}));
     }
   };
 
   // Seleccionar un préstamo (o por ID o por objeto completo)
   const selectLoan = (loanOrId: Loan | string) => {
-    if (typeof loanOrId === 'string') {
-      setSelectedLoanId(loanOrId);
-      const loan = loans.find(l => l.id === loanOrId);
-      setSelectedLoan(loan || null);
-      
-      // Si no tenemos todos los detalles, los cargamos
-      if (loan && (!loan.payments || loan.payments.length === 0)) {
-        fetchLoanById(loanOrId, false); // No mostramos loader si ya tenemos datos básicos
-      }
-    } else {
-      setSelectedLoanId(loanOrId.id);
-      setSelectedLoan(loanOrId);
-      
-      // Si no tenemos todos los detalles, los cargamos
-      if (!loanOrId.payments || loanOrId.payments.length === 0) {
-        fetchLoanById(loanOrId.id, false); // No mostramos loader si ya tenemos datos básicos
+    const id = typeof loanOrId === 'string' ? loanOrId : loanOrId.id;
+    const loan = typeof loanOrId === 'string' ? loans.find(l => l.id === loanOrId) : loanOrId;
+
+    // Verificar si ya estamos gestionando este préstamo
+    if (id === selectedLoanId && selectedLoan && selectedLoan.id === id) {
+      return; // Evitar actualización innecesaria del estado
+    }
+
+    // Actualizar estado
+    setSelectedLoanId(id);
+    setSelectedLoan(loan || null);
+
+    // Verificar si necesitamos cargar datos adicionales
+    if (loan && (!loan.scheduleItems || loan.scheduleItems.length === 0)) {
+      // Verificar si ya estamos cargando este préstamo
+      if (!fetchingLoanIds[id]) {
+        fetchLoanById(id, false); // No mostramos loader si ya tenemos datos básicos
       }
     }
   };
@@ -159,19 +180,33 @@ export const useLoans = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Usamos useRef para hacer seguimiento del ID seleccionado actual y evitar peticiones duplicadas
+  const currentLoanIdRef = useRef<string | null>(null);
+
   // Cuando cambia el ID seleccionado, cargar detalles si es necesario
   useEffect(() => {
+    // Prevenir peticiones duplicadas para el mismo ID
+    if (selectedLoanId === currentLoanIdRef.current) {
+      return;
+    }
+
+    currentLoanIdRef.current = selectedLoanId;
+
     if (selectedLoanId && (!selectedLoan || selectedLoan.id !== selectedLoanId)) {
       const loan = loans.find(l => l.id === selectedLoanId);
       if (loan) {
         setSelectedLoan(loan);
-        
-        // Siempre cargar los detalles completos del préstamo cuando se selecciona
-        // para asegurar que tengamos la tabla de amortización actualizada
-        fetchLoanById(selectedLoanId, false);
+
+        // Solo cargamos los detalles completos si no tenemos la tabla de amortización
+        if (!loan.scheduleItems || loan.scheduleItems.length === 0) {
+          // Verificamos nuevamente si ya estamos cargando este préstamo
+          if (!fetchingLoanIds[selectedLoanId]) {
+            fetchLoanById(selectedLoanId, false);
+          }
+        }
       }
     }
-  }, [selectedLoanId, selectedLoan, loans]);
+  }, [selectedLoanId]);
 
   return {
     loans,

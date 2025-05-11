@@ -106,10 +106,6 @@ export default function App() {
     console.log('User logged out');
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
-  }
-
   // Rutas para usuarios no autenticados
   if (!token) {
     return (

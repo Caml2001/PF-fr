@@ -208,9 +208,38 @@ const transformApiLoanToLoan = (apiLoan: ApiLoan): Loan => {
 // Obtener todos los préstamos del usuario
 export const getLoans = async (): Promise<Loan[]> => {
   try {
+    // Check cache for fresh data
+    const LOANS_CACHE_KEY = 'pf-loans-cache';
+    const cachedLoans = sessionStorage.getItem(LOANS_CACHE_KEY);
+
+    if (cachedLoans) {
+      try {
+        const { loans, timestamp } = JSON.parse(cachedLoans);
+        const now = Date.now();
+        // If cache is less than 1 minute old, use it
+        if (now - timestamp < 60000) {
+          return loans;
+        }
+      } catch (e) {
+        console.warn('Error parsing cached loans data:', e);
+      }
+    }
+
     const response = await apiClient.get('/api/loans');
     const apiLoans: ApiLoan[] = response.data;
-    return apiLoans.map(transformApiLoanToLoan);
+    const loans = apiLoans.map(transformApiLoanToLoan);
+
+    // Cache the results
+    try {
+      sessionStorage.setItem(LOANS_CACHE_KEY, JSON.stringify({
+        loans,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('Error caching loans data:', e);
+    }
+
+    return loans;
   } catch (error) {
     console.error('Error al obtener préstamos:', error);
     return [];
@@ -220,68 +249,95 @@ export const getLoans = async (): Promise<Loan[]> => {
 // Obtener un préstamo específico por ID con detalles completos
 export const getLoanById = async (loanId: string): Promise<Loan | null> => {
   try {
-    const response = await apiClient.get(`/api/loans/${loanId}`);
-    const apiLoan: ApiLoan = response.data;
-    const loan = transformApiLoanToLoan(apiLoan);
-    
-    // Intentar obtener la tabla de amortización siempre, independientemente del estado del préstamo
-    try {
-      const scheduleResponse = await apiClient.get(`/api/loans/${loanId}/schedule`);
-      const scheduleData = scheduleResponse.data;
-      
-      // Log para depuración
-      console.log('Datos de tabla de pagos recibidos:', scheduleData);
-      
-      // Detectar qué tipo de datos estamos recibiendo
-      if (Array.isArray(scheduleData) && scheduleData.length > 0) {
-        try {
-          // Determinamos el tipo de respuesta según las propiedades
-          if ('periodIndex' in scheduleData[0]) {
-            // Es el nuevo formato (ApiScheduleItemV2)
-            loan.scheduleItems = scheduleData.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
-          } else if ('paymentNumber' in scheduleData[0]) {
-            // Es el formato anterior (ApiScheduleItem)
-            loan.scheduleItems = scheduleData.map((item: ApiScheduleItem) => transformScheduleItem(item));
-          } else {
-            // Intentamos adaptar los datos al formato esperado
-            console.log('Formato de datos no reconocido, intentando adaptar:', scheduleData[0]);
-            
-            loan.scheduleItems = scheduleData.map((item: any, index) => {
-              return {
-                paymentNumber: item.periodIndex !== undefined ? item.periodIndex + 1 : (item.id || index + 1),
-                date: formatDateToSpanish(item.dueDate || new Date().toISOString()),
-                principal: item.principalDue || item.principal || 0,
-                interest: item.interestDue || item.interest || 0,
-                total: item.totalDue || item.total || 0,
-                remainingBalance: item.remainingDue || item.remainingBalance || 0,
-                status: (item.paid !== undefined) ? (item.paid ? 'paid' : 'pending') : mapPaymentStatus(item.status || 'pending')
-              };
-            });
-          }
-          
-          // Log para depuración de los datos transformados
-          console.log('Datos de tabla de pagos transformados:', loan.scheduleItems);
-        } catch (transformError) {
-          console.error('Error al transformar los datos de la tabla de pagos:', transformError);
-          console.log('Datos originales:', scheduleData);
+    // Cached loan key
+    const LOAN_CACHE_KEY = `pf-loan-${loanId}`;
+    const cachedLoan = sessionStorage.getItem(LOAN_CACHE_KEY);
+
+    // Check if we have fresh cached data (less than 1 minute old)
+    if (cachedLoan) {
+      try {
+        const { loan, timestamp } = JSON.parse(cachedLoan);
+        const now = Date.now();
+        // If cache is less than 1 minute old, use it
+        if (now - timestamp < 60000) {
+          return loan;
         }
-      } else {
-        console.log('No se recibieron datos de tabla de pagos o el array está vacío');
+      } catch (e) {
+        // Continue to fetch if cache parsing fails
+        console.warn('Error parsing cached loan data:', e);
       }
-      
-      // Calcular detalles adicionales
-      const totalInterest = loan.scheduleItems ? loan.scheduleItems.reduce((sum, item) => sum + item.interest, 0) : 0;
-      const totalAmount = loan.amount + totalInterest + loan.commissionAmount;
-      
-      loan.details = {
-        totalInterest,
-        totalAmount
-      };
-    } catch (scheduleError) {
-      console.error(`Error al obtener tabla de amortización para préstamo #${loanId}:`, scheduleError);
-      // Continuamos con el préstamo sin la tabla de amortización
     }
-    
+
+    // Get loan basic data and schedule in parallel to reduce API calls
+    const [loanResponse, scheduleResponse] = await Promise.all([
+      apiClient.get(`/api/loans/${loanId}`),
+      apiClient.get(`/api/loans/${loanId}/schedule`).catch(err => {
+        console.warn(`Error fetching loan schedule: ${err.message}`);
+        return { data: [] };
+      })
+    ]);
+
+    const apiLoan: ApiLoan = loanResponse.data;
+    const loan = transformApiLoanToLoan(apiLoan);
+    const scheduleData = scheduleResponse.data;
+
+    // Debug log only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Datos de tabla de pagos recibidos:', scheduleData);
+    }
+
+    // Detectar qué tipo de datos estamos recibiendo
+    if (Array.isArray(scheduleData) && scheduleData.length > 0) {
+      try {
+        // Determinamos el tipo de respuesta según las propiedades
+        if ('periodIndex' in scheduleData[0]) {
+          // Es el nuevo formato (ApiScheduleItemV2)
+          loan.scheduleItems = scheduleData.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
+        } else if ('paymentNumber' in scheduleData[0]) {
+          // Es el formato anterior (ApiScheduleItem)
+          loan.scheduleItems = scheduleData.map((item: ApiScheduleItem) => transformScheduleItem(item));
+        } else {
+          // Intentamos adaptar los datos al formato esperado
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Formato de datos no reconocido, intentando adaptar:', scheduleData[0]);
+          }
+
+          loan.scheduleItems = scheduleData.map((item: any, index) => {
+            return {
+              paymentNumber: item.periodIndex !== undefined ? item.periodIndex + 1 : (item.id || index + 1),
+              date: formatDateToSpanish(item.dueDate || new Date().toISOString()),
+              principal: item.principalDue || item.principal || 0,
+              interest: item.interestDue || item.interest || 0,
+              total: item.totalDue || item.total || 0,
+              remainingBalance: item.remainingDue || item.remainingBalance || 0,
+              status: (item.paid !== undefined) ? (item.paid ? 'paid' : 'pending') : mapPaymentStatus(item.status || 'pending')
+            };
+          });
+        }
+      } catch (transformError) {
+        console.error('Error al transformar los datos de la tabla de pagos:', transformError);
+      }
+    }
+
+    // Calcular detalles adicionales
+    const totalInterest = loan.scheduleItems ? loan.scheduleItems.reduce((sum, item) => sum + item.interest, 0) : 0;
+    const totalAmount = loan.amount + totalInterest + loan.commissionAmount;
+
+    loan.details = {
+      totalInterest,
+      totalAmount
+    };
+
+    // Cache the result with timestamp
+    try {
+      sessionStorage.setItem(LOAN_CACHE_KEY, JSON.stringify({
+        loan,
+        timestamp: Date.now()
+      }));
+    } catch (e) {
+      console.warn('Error caching loan data:', e);
+    }
+
     return loan;
   } catch (error) {
     console.error(`Error al obtener préstamo #${loanId}:`, error);
@@ -292,22 +348,41 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
 // Obtener la tabla de amortización de un préstamo
 export const getLoanSchedule = async (loanId: string): Promise<ScheduleItem[]> => {
   try {
+    // Check if we have this data in the loan cache
+    const LOAN_CACHE_KEY = `pf-loan-${loanId}`;
+    const cachedLoan = sessionStorage.getItem(LOAN_CACHE_KEY);
+
+    if (cachedLoan) {
+      try {
+        const { loan, timestamp } = JSON.parse(cachedLoan);
+        const now = Date.now();
+        // If cache is less than 1 minute old and contains scheduleItems, use it
+        if (now - timestamp < 60000 && loan.scheduleItems && loan.scheduleItems.length > 0) {
+          return loan.scheduleItems;
+        }
+      } catch (e) {
+        console.warn('Error parsing cached loan schedule data:', e);
+      }
+    }
+
+    // Fetch fresh data if cache is missing or expired
     const response = await apiClient.get(`/api/loans/${loanId}/schedule`);
     const data = response.data;
-    
+    let scheduleItems: ScheduleItem[] = [];
+
     // Detectar qué tipo de datos estamos recibiendo
     if (Array.isArray(data) && data.length > 0) {
       // Determinamos el tipo de respuesta según las propiedades
       if ('periodIndex' in data[0]) {
         // Es el nuevo formato (ApiScheduleItemV2)
-        return data.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
+        scheduleItems = data.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
       } else {
         // Es el formato anterior (ApiScheduleItem)
-        return data.map((item: ApiScheduleItem) => transformScheduleItem(item));
+        scheduleItems = data.map((item: ApiScheduleItem) => transformScheduleItem(item));
       }
     }
-    
-    return [];
+
+    return scheduleItems;
   } catch (error) {
     console.error(`Error al obtener tabla de amortización para préstamo #${loanId}:`, error);
     return [];
