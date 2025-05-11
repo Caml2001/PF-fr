@@ -21,7 +21,7 @@ const LoginSchema = z.object({
 type LoginFormData = z.infer<typeof LoginSchema>;
 
 interface AuthFormProps {
-  onLogin: (username: string) => void;
+  onLogin: (token: string) => void;
   onStartSignup: () => void;
 }
 
@@ -38,8 +38,12 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
   const handleLoginSubmit: SubmitHandler<LoginFormData> = async (data) => {
     loginMutation.mutate(data, {
       onSuccess: (response) => {
-        console.log('Login successful via hook:', response);
-        onLogin(response.user?.email || data.email); 
+        const token = response?.session?.access_token;
+        if (token) {
+          onLogin(token);
+        } else {
+          console.error('No se recibió token en el login');
+        }
       },
       onError: (error) => {
         console.error('Login failed via hook:', error);

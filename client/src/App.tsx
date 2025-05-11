@@ -12,65 +12,99 @@ import { useIsPWA } from "./hooks/useIsPWA";
 import { Router, Route, useLocation, Link } from "wouter";
 
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const isPWA = useIsPWA();
   const [location, setLocation] = useLocation();
+  const [token, setToken] = React.useState<string | null>(null);
+  const [onboardingStatus, setOnboardingStatus] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
 
-  useEffect(() => {
-    // Check if there's a logged-in user in localStorage
-    const storedAuth = localStorage.getItem('isAuthenticated');
-    if (storedAuth === 'true') {
-      setIsAuthenticated(true);
+  React.useEffect(() => {
+    const storedToken = localStorage.getItem('authToken');
+    setToken(storedToken);
+    if (storedToken) {
+      setLoading(true);
+      import('./lib/api/onboardingService').then(({ fetchOnboardingStatus }) => {
+        fetchOnboardingStatus()
+          .then((res) => {
+            setOnboardingStatus(res.status);
+            if (res.status === 'complete' || res.status === 'completed') {
+              setLocation('/home');
+            } else {
+              setLocation('/register');
+            }
+          })
+          .catch(() => {
+            setOnboardingStatus(null);
+            setLocation('/login');
+          })
+          .finally(() => setLoading(false));
+      });
+    } else {
+      setLocation('/login');
     }
   }, []);
 
-  // Función para manejar el login (ahora llamada por AuthForm DESPUÉS de una API exitosa)
-  const handleLogin = (username: string) => {
-    console.log("Login successful for:", username); // Username might not be needed here anymore
-    setIsAuthenticated(true);
-    localStorage.setItem('isAuthenticated', 'true');
-    // Redirect after state is set, ensuring UI updates smoothly
-    // Using setLocation might be smoother than window.location.replace if no full reload is desired
-    setLocation("/home"); 
-    // window.location.replace("/home"); // Keep if full reload is intended
+  const handleLogin = (userToken: string) => {
+    localStorage.setItem('authToken', userToken);
+    setToken(userToken);
+    setLoading(true);
+    import('./lib/api/onboardingService').then(({ fetchOnboardingStatus }) => {
+      fetchOnboardingStatus()
+        .then((res) => {
+          setOnboardingStatus(res.status);
+          if (res.status === 'complete' || res.status === 'completed') {
+            setLocation('/home');
+          } else {
+            setLocation('/register');
+          }
+        })
+        .catch(() => {
+          setOnboardingStatus(null);
+          setLocation('/login');
+        })
+        .finally(() => setLoading(false));
+    });
   };
 
-  // Función para manejar la finalización del onboarding (después de signup API exitoso)
-  const handleOnboardingComplete = (/* Optional: userData from OnboardingFlow if needed */) => {
-    console.log("Onboarding/Signup successful, logging user in.");
-    setIsAuthenticated(true);
-    localStorage.setItem('isAuthenticated', 'true');
-    setLocation("/home"); // Navigate to home after successful signup/login
+  const handleOnboardingComplete = () => {
+    setOnboardingStatus('complete');
+    setLocation('/home');
   };
 
-  // Función para manejar la cancelación del onboarding
   const handleOnboardingCancel = () => {
+    setToken(null);
+    setOnboardingStatus(null);
+    localStorage.removeItem('authToken');
+    setLocation('/login');
   };
 
-  // Función para manejar el logout
   const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('isAuthenticated');
-    setLocation("/login");
-    console.log("User logged out");
+    setToken(null);
+    setOnboardingStatus(null);
+    localStorage.removeItem('authToken');
+    setLocation('/login');
+    console.log('User logged out');
   };
 
-  // Routing for login/register/onboarding
-  if (!isAuthenticated) {
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
+  }
+
+  if (!token) {
     return (
       <Router>
         <Route path="/login"><PageContainer><ContentContainer><AuthForm onLogin={handleLogin} onStartSignup={() => setLocation('/register')} /></ContentContainer></PageContainer></Route>
         <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
-        {/* Default: redirect to login */}
-        <Route path="/">{() => { 
-          // Check auth state again in case it changed while navigating
-          if (!isAuthenticated) {
-             setLocation("/login");
-          } else {
-            setLocation("/home"); // Should not happen if !isAuthenticated, but safer
-          }
-          return null; 
-        }}</Route>
+        <Route path="/">{() => { setLocation('/login'); return null; }}</Route>
+      </Router>
+    );
+  }
+
+  if (onboardingStatus !== 'complete' && onboardingStatus !== 'completed') {
+    return (
+      <Router>
+        <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
+        <Route path="/">{() => { setLocation('/register'); return null; }}</Route>
       </Router>
     );
   }
@@ -84,43 +118,16 @@ export default function App() {
           <Route path="/profile"><ProfileSection /></Route>
           <Route path="/settings"><SettingsSection /></Route>
           <Route path="/apply"><CreditApplicationForm onLogout={handleLogout} /></Route>
-          {/* Example: you can add more routes for loan details, payments, etc. */}
-          {/* Redirect root to /home */}
-          <Route path="/">{() => { 
-            // Redirect authenticated users from root to /home
-            setLocation("/home"); 
-            return null; 
-          }}</Route>
+          <Route path="/">{() => { setLocation('/home'); return null; }}</Route>
         </main>
-        {/* Bottom nav only in PWA */}
         {isPWA && (
           <nav className="fixed bottom-0 left-0 right-0 bg-background border-t pb-[10px]">
             <ContentContainer>
               <div className="flex justify-around py-2">
-                <NavButton
-                  icon={<HomeIcon className="h-5 w-5" />}
-                  label="Home"
-                  isActive={location === "/home"}
-                  onClick={() => setLocation("/home")}
-                />
-                <NavButton
-                  icon={<DollarSignIcon className="h-5 w-5" />}
-                  label="Loans"
-                  isActive={location === "/loans"}
-                  onClick={() => setLocation("/loans")}
-                />
-                <NavButton
-                  icon={<UserIcon className="h-5 w-5" />}
-                  label="Profile"
-                  isActive={location === "/profile"}
-                  onClick={() => setLocation("/profile")}
-                />
-                <NavButton
-                  icon={<SettingsIcon className="h-5 w-5" />}
-                  label="Settings"
-                  isActive={location === "/settings"}
-                  onClick={() => setLocation("/settings")}
-                />
+                <NavButton icon={<HomeIcon className="h-5 w-5" />} label="Home" isActive={location === "/home"} onClick={() => setLocation("/home")} />
+                <NavButton icon={<DollarSignIcon className="h-5 w-5" />} label="Loans" isActive={location === "/loans"} onClick={() => setLocation("/loans")} />
+                <NavButton icon={<UserIcon className="h-5 w-5" />} label="Profile" isActive={location === "/profile"} onClick={() => setLocation("/profile")} />
+                <NavButton icon={<SettingsIcon className="h-5 w-5" />} label="Settings" isActive={location === "/settings"} onClick={() => setLocation("/settings")} />
               </div>
             </ContentContainer>
           </nav>

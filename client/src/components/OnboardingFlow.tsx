@@ -11,6 +11,7 @@ import { useUploadIne } from '../hooks/useUploadIne';
 import { useUpdateProfile } from '../hooks/useUpdateProfile';
 import { type SignupData } from '../lib/api/authService';
 import ProfileReview from '../components/ProfileReview';
+import CreditBureauConsent from './CreditBureauConsent';
 import ProcessingOverlay from "./ProcessingOverlay";
 import apiClient from '../lib/api/axios';
 import { login } from '../lib/api/authService';
@@ -222,10 +223,8 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
               // Intentar login automático
               try {
                 const loginResp = await login({ email: userData.email, password: userData.password });
-                // Guardar token manualmente
-                if (loginResp.session?.access_token) {
-                  localStorage.setItem('authToken', loginResp.session.access_token);
-                }
+                // No necesitamos guardar el token manualmente ya que login() ya lo hace
+
                 // Esperar un poco para que el backend termine de guardar sesión y datos
                 await new Promise(res => setTimeout(res, 700));
                 // Si login exitoso, consultar status y saltar al paso correspondiente
@@ -333,11 +332,17 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
     }
     if (currentStep === "bureauConsent") {
       return (
-        <div className="space-y-6 text-center max-w-md mx-auto">
-          <h3 className="text-xl font-semibold">Autorización para consultar buró de crédito</h3>
-          <p className="text-muted-foreground">Para continuar con tu registro, necesitamos tu autorización para consultar tu historial crediticio en buró. Esta consulta no afecta tu score.</p>
-          <Button className="w-full h-12 mt-6" onClick={goToNextStep}>Autorizo consulta a buró</Button>
-        </div>
+        <CreditBureauConsent
+          onConsent={(creditReport) => {
+            // Opcionalmente guardar el creditReport si lo necesitas usar
+            console.log("Reporte de crédito:", creditReport);
+            goToNextStep();
+          }}
+          onCancel={() => {
+            // Si el usuario rechaza la consulta, avanzamos al siguiente paso igualmente
+            goToNextStep();
+          }}
+        />
       );
     }
     if (currentStep === "done") {

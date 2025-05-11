@@ -61,6 +61,14 @@ export const verifyOtp = async ({ phoneNumber, otp }: { phoneNumber: string; otp
       token: otp
     };
     const response = await apiClient.post('/profile/phone/verify', payload);
+
+    // Check if response includes enhancedToken and update auth token in localStorage
+    if (response.data && response.data.enhancedToken) {
+      localStorage.setItem('authToken', response.data.enhancedToken);
+      // Also update the Authorization header for future requests
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.enhancedToken}`;
+    }
+
     return response.data; // Response should confirm verification
   } catch (error) {
     console.error('Error verifying OTP:', error);

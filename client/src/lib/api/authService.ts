@@ -37,6 +37,14 @@ export interface AuthResponse {
 export const login = async (credentials: AuthCredentials): Promise<AuthResponse> => {
   try {
     const response = await apiClient.post<AuthResponse>('/auth/signin', credentials);
+
+    // Store the access token in localStorage
+    if (response.data.session?.access_token) {
+      localStorage.setItem('authToken', response.data.session.access_token);
+      // Update the Authorization header for future requests
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.session.access_token}`;
+    }
+
     return response.data;
   } catch (error: any) {
     // Re-throw or handle error appropriately
@@ -53,6 +61,14 @@ export const signup = async (data: SignupData): Promise<AuthResponse> => {
       password: data.password,
     };
     const response = await apiClient.post<AuthResponse>('/auth/signup', payload);
+
+    // Store the access token in localStorage
+    if (response.data.session?.access_token) {
+      localStorage.setItem('authToken', response.data.session.access_token);
+      // Update the Authorization header for future requests
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.session.access_token}`;
+    }
+
     return response.data;
   } catch (error: any) {
     console.error("Signup API error:", error.response?.data || error.message);
