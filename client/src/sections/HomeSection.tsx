@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { 
-  BadgeCheckIcon, 
-  ArrowRightIcon, 
+import {
+  BadgeCheckIcon,
+  ArrowRightIcon,
   ClockIcon,
   CalendarIcon,
   CheckCircleIcon,
@@ -18,10 +18,10 @@ import CreditApplicationForm from "@/components/CreditApplicationForm";
 import { ContentContainer, PageContainer, SectionContainer, SectionHeader } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useLocation } from "wouter";
 import TopNavMenu from "@/components/TopNavMenu";
 import useCreditInfo from "@/hooks/useCreditInfo";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useLocation } from "wouter";
 
 interface HomeSectionProps {
 }
@@ -29,12 +29,7 @@ interface HomeSectionProps {
 export default function HomeSection() {
   // Obtener información de crédito desde el backend
   const { creditInfo, isLoading, error, refreshSilently } = useCreditInfo();
-
-  // Navigation handler using wouter
-  const [, setLocation] = useLocation();
-  const handleNav = (route: string) => {
-    setLocation(route);
-  };
+  const [location, navigate] = useLocation();
 
   return (
     <PageContainer>
@@ -81,7 +76,7 @@ export default function HomeSection() {
           
           <Button 
             className="w-full mb-5 shadow-sm text-base py-6 rounded-xl"
-            onClick={() => handleNav("/apply")}
+            onClick={() => navigate("/apply")}
             disabled={isLoading || !!error || creditInfo.available <= 0}
           >
             Solicitar ahora <ArrowRightIcon className="h-5 w-5 ml-2" />

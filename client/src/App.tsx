@@ -9,16 +9,19 @@ import CreditApplicationForm from "./components/CreditApplicationForm";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
 import { ContentContainer, PageContainer } from "./components/Layout";
 import { useIsPWA } from "./hooks/useIsPWA";
-import { Router, Route, useLocation, Link } from "wouter";
+import { Router, Route, Switch, useLocation } from "wouter";
+import LoanPaymentSchedule from "./components/LoanPaymentSchedule";
+import AdvancePaymentForm from "./components/AdvancePaymentForm";
+import ScrollToTop from "./components/ScrollToTop";
 
 export default function App() {
   const isPWA = useIsPWA();
-  const [location, setLocation] = useLocation();
-  const [token, setToken] = React.useState<string | null>(null);
-  const [onboardingStatus, setOnboardingStatus] = React.useState<string | null>(null);
-  const [loading, setLoading] = React.useState(false);
+  const [token, setToken] = useState<string | null>(null);
+  const [onboardingStatus, setOnboardingStatus] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [location, navigate] = useLocation();
 
-  React.useEffect(() => {
+  useEffect(() => {
     const storedToken = localStorage.getItem('authToken');
     setToken(storedToken);
     if (storedToken) {
@@ -34,21 +37,26 @@ export default function App() {
               res.status === 'DUMMY_BUREAU_CHECK_COMPLETED' ||
               res.status === 'CREDIT_REPORT_AVAILABLE_DUMMY'
             ) {
-              setLocation('/home');
+              // Solo navegamos a home si estamos en la ruta raíz (/) 
+              // o en una ruta no segura
+              const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply'];
+              if (location === '/' || !validSecuredPaths.some(path => location.startsWith(path))) {
+                navigate('/home');
+              }
             } else {
-              setLocation('/register');
+              navigate('/register');
             }
           })
           .catch(() => {
             setOnboardingStatus(null);
-            setLocation('/login');
+            navigate('/login');
           })
           .finally(() => setLoading(false));
       });
     } else {
-      setLocation('/login');
+      navigate('/login');
     }
-  }, []);
+  }, [navigate, location]);
 
   const handleLogin = (userToken: string) => {
     localStorage.setItem('authToken', userToken);
@@ -65,14 +73,14 @@ export default function App() {
             res.status === 'DUMMY_BUREAU_CHECK_COMPLETED' ||
             res.status === 'CREDIT_REPORT_AVAILABLE_DUMMY'
           ) {
-            setLocation('/home');
+            navigate('/home');
           } else {
-            setLocation('/register');
+            navigate('/register');
           }
         })
         .catch(() => {
           setOnboardingStatus(null);
-          setLocation('/login');
+          navigate('/login');
         })
         .finally(() => setLoading(false));
     });
@@ -80,21 +88,21 @@ export default function App() {
 
   const handleOnboardingComplete = () => {
     setOnboardingStatus('complete');
-    setLocation('/home');
+    navigate('/home');
   };
 
   const handleOnboardingCancel = () => {
     setToken(null);
     setOnboardingStatus(null);
     localStorage.removeItem('authToken');
-    setLocation('/login');
+    navigate('/login');
   };
 
   const handleLogout = () => {
     setToken(null);
     setOnboardingStatus(null);
     localStorage.removeItem('authToken');
-    setLocation('/login');
+    navigate('/login');
     console.log('User logged out');
   };
 
@@ -102,12 +110,39 @@ export default function App() {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
 
+  // Rutas para usuarios no autenticados
   if (!token) {
     return (
       <Router>
-        <Route path="/login"><PageContainer><ContentContainer><AuthForm onLogin={handleLogin} onStartSignup={() => setLocation('/register')} /></ContentContainer></PageContainer></Route>
-        <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
-        <Route path="/">{() => { setLocation('/login'); return null; }}</Route>
+        <ScrollToTop />
+        <Switch>
+          <Route path="/login">
+            <PageContainer>
+              <ContentContainer>
+                <AuthForm 
+                  onLogin={handleLogin} 
+                  onStartSignup={() => navigate('/register')} 
+                />
+              </ContentContainer>
+            </PageContainer>
+          </Route>
+          <Route path="/register">
+            <PageContainer>
+              <ContentContainer>
+                <OnboardingFlow 
+                  onComplete={handleOnboardingComplete} 
+                  onCancel={handleOnboardingCancel} 
+                />
+              </ContentContainer>
+            </PageContainer>
+          </Route>
+          <Route>
+            {() => {
+              navigate('/login');
+              return null;
+            }}
+          </Route>
+        </Switch>
       </Router>
     );
   }
@@ -120,34 +155,109 @@ export default function App() {
     'CREDIT_REPORT_AVAILABLE_DUMMY'
   ];
 
+  // Rutas para usuarios en proceso de onboarding
   if (!completedStatuses.includes(onboardingStatus || '')) {
     return (
       <Router>
-        <Route path="/register"><PageContainer><ContentContainer><OnboardingFlow onComplete={handleOnboardingComplete} onCancel={handleOnboardingCancel} /></ContentContainer></PageContainer></Route>
-        <Route path="/">{() => { setLocation('/register'); return null; }}</Route>
+        <ScrollToTop />
+        <Switch>
+          <Route path="/register">
+            <PageContainer>
+              <ContentContainer>
+                <OnboardingFlow 
+                  onComplete={handleOnboardingComplete} 
+                  onCancel={handleOnboardingCancel} 
+                />
+              </ContentContainer>
+            </PageContainer>
+          </Route>
+          <Route>
+            {() => {
+              navigate('/register');
+              return null;
+            }}
+          </Route>
+        </Switch>
       </Router>
     );
   }
 
+  // Rutas para usuarios autenticados y con onboarding completo
   return (
     <Router>
+      <ScrollToTop />
       <div className="min-h-screen flex flex-col">
         <main className="flex-1 pb-16">
-          <Route path="/home"><HomeSection /></Route>
-          <Route path="/loans"><LoansSection /></Route>
-          <Route path="/profile"><ProfileSection /></Route>
-          <Route path="/settings"><SettingsSection /></Route>
-          <Route path="/apply"><CreditApplicationForm onLogout={handleLogout} /></Route>
-          <Route path="/">{() => { setLocation('/home'); return null; }}</Route>
+          <Switch>
+            <Route path="/home">
+              <HomeSection />
+            </Route>
+            <Route path="/loans">
+              <LoansSection />
+            </Route>
+            <Route path="/loans/:loanId">
+              {(params) => <LoansSection loanId={params.loanId} />}
+            </Route>
+            <Route path="/loans/:loanId/payments">
+              {(params) => <LoansSection loanId={params.loanId} view="payments" />}
+            </Route>
+            <Route path="/loans/:loanId/schedule">
+              {(params) => <LoansSection loanId={params.loanId} view="schedule" />}
+            </Route>
+            <Route path="/loans/:loanId/advance-payment">
+              {(params) => <LoansSection loanId={params.loanId} view="advance-payment" />}
+            </Route>
+            <Route path="/profile">
+              <ProfileSection />
+            </Route>
+            <Route path="/settings">
+              <SettingsSection />
+            </Route>
+            <Route path="/apply">
+              <CreditApplicationForm onLogout={handleLogout} />
+            </Route>
+            <Route path="/">
+              {() => {
+                navigate('/home');
+                return null;
+              }}
+            </Route>
+            <Route>
+              {() => {
+                navigate('/home');
+                return null;
+              }}
+            </Route>
+          </Switch>
         </main>
         {isPWA && (
           <nav className="fixed bottom-0 left-0 right-0 bg-background border-t pb-[10px]">
             <ContentContainer>
               <div className="flex justify-around py-2">
-                <NavButton icon={<HomeIcon className="h-5 w-5" />} label="Home" isActive={location === "/home"} onClick={() => setLocation("/home")} />
-                <NavButton icon={<DollarSignIcon className="h-5 w-5" />} label="Loans" isActive={location === "/loans"} onClick={() => setLocation("/loans")} />
-                <NavButton icon={<UserIcon className="h-5 w-5" />} label="Profile" isActive={location === "/profile"} onClick={() => setLocation("/profile")} />
-                <NavButton icon={<SettingsIcon className="h-5 w-5" />} label="Settings" isActive={location === "/settings"} onClick={() => setLocation("/settings")} />
+                <NavButton
+                  icon={<HomeIcon className="h-5 w-5" />}
+                  label="Home"
+                  isActive={location.startsWith("/home")}
+                  onClick={() => navigate("/home")}
+                />
+                <NavButton
+                  icon={<DollarSignIcon className="h-5 w-5" />}
+                  label="Loans"
+                  isActive={location.startsWith("/loans")}
+                  onClick={() => navigate("/loans")}
+                />
+                <NavButton
+                  icon={<UserIcon className="h-5 w-5" />}
+                  label="Profile"
+                  isActive={location.startsWith("/profile")}
+                  onClick={() => navigate("/profile")}
+                />
+                <NavButton
+                  icon={<SettingsIcon className="h-5 w-5" />}
+                  label="Settings"
+                  isActive={location.startsWith("/settings")}
+                  onClick={() => navigate("/settings")}
+                />
               </div>
             </ContentContainer>
           </nav>
@@ -167,13 +277,13 @@ interface NavButtonProps {
 function NavButton({ icon, label, isActive, onClick }: NavButtonProps) {
   return (
     <button
-      className={`flex flex-col items-center justify-center px-4 py-1 rounded-md transition-colors ${
-        isActive ? 'text-primary' : 'text-muted-foreground'
-      }`}
       onClick={onClick}
+      className={`flex flex-col items-center justify-center w-16 ${
+        isActive ? "text-primary" : "text-muted-foreground"
+      }`}
     >
       {icon}
-      <span className="text-xs mt-1">{label}</span>
+      <span className="mt-1 text-xs">{label}</span>
     </button>
   );
 }

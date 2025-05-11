@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import useLoans from "@/hooks/useLoans";
 import { Loan, Payment } from "@/lib/api/loanService";
 import { Skeleton } from "@/components/ui/skeleton";
 import LoanPaymentSchedule from "@/components/LoanPaymentSchedule";
+import { useLocation } from "wouter";
 
 // Función para renderizar el estado del préstamo
 const LoanStatusBadge = ({ status }: { status: string }) => {
@@ -56,61 +57,71 @@ const LoanStatusBadge = ({ status }: { status: string }) => {
   }
 };
 
-export default function LoansSection() {
+interface LoansSectionProps {
+  loanId?: string;
+  view?: 'payments' | 'schedule' | 'advance-payment';
+}
+
+export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
+  const [location, navigate] = useLocation();
+  
   // Hook para gestionar préstamos con optimistic UI
-  const { 
-    loans, 
-    isLoading, 
+  const {
+    loans,
+    isLoading,
     isRefreshing,
-    error, 
-    selectedLoan, 
-    selectLoan, 
-    clearSelection, 
+    error,
+    selectedLoan,
+    selectLoan,
+    clearSelection,
     refreshLoans,
     isInitialized
   } = useLoans();
-  
-  // Estados locales para navegación y formularios
-  const [showPayments, setShowPayments] = useState(false);
-  const [showApplication, setShowApplication] = useState(false);
-  const [showAdvancePayment, setShowAdvancePayment] = useState(false);
-  const [showPaymentSchedule, setShowPaymentSchedule] = useState(false);
 
-  // Función para volver a la vista principal de préstamos
-  const handleBack = () => {
-    if (showPayments) {
-      setShowPayments(false);
-    } else if (showApplication) {
-      setShowApplication(false);
-    } else if (showAdvancePayment) {
-      setShowAdvancePayment(false);
-    } else if (showPaymentSchedule) {
-      setShowPaymentSchedule(false);
-    } else {
+  // Efecto para cargar el préstamo seleccionado por ID de ruta
+  useEffect(() => {
+    if (loanId && (!selectedLoan || selectedLoan.id !== loanId)) {
+      selectLoan(loanId);
+    } else if (!loanId && selectedLoan) {
       clearSelection();
+    }
+  }, [loanId, selectedLoan]);
+
+  // Función para volver a la vista principal de préstamos o a los detalles
+  const handleBack = () => {
+    if (view) {
+      // Si estamos en una sub-vista, volver a los detalles del préstamo
+      navigate(`/loans/${loanId}`);
+    } else if (loanId) {
+      // Si estamos en los detalles, volver a la lista
+      navigate('/loans');
     }
   };
 
   // Función para mostrar la vista de pagos
   const handleViewPayments = () => {
-    setShowPayments(true);
+    if (selectedLoan) {
+      navigate(`/loans/${selectedLoan.id}/payments`);
+    }
   };
 
   // Función para mostrar la tabla de amortización
   const handleViewPaymentSchedule = () => {
-    console.log('Mostrando tabla de pagos');
-    setShowPaymentSchedule(true);
-    console.log('Estado showPaymentSchedule:', true);
+    if (selectedLoan) {
+      navigate(`/loans/${selectedLoan.id}/schedule`);
+    }
   };
 
   // Función para mostrar el formulario de solicitud
   const handleApplyLoan = () => {
-    setShowApplication(true);
+    navigate('/apply');
   };
 
   // Función para mostrar el formulario de adelanto de pago
   const handleAdvancePayment = () => {
-    setShowAdvancePayment(true);
+    if (selectedLoan) {
+      navigate(`/loans/${selectedLoan.id}/advance-payment`);
+    }
   };
 
   // Función de recarga de datos
@@ -126,18 +137,18 @@ export default function LoansSection() {
   };
 
   // Si estamos mostrando el formulario de solicitud
-  if (showApplication) {
-    return <CreditApplicationForm onLogout={handleBack} />;
+  if (location === '/apply') {
+    return <CreditApplicationForm onLogout={() => navigate('/loans')} />;
   }
 
   // Si estamos mostrando el formulario de adelanto de pago
-  if (showAdvancePayment && selectedLoan) {
+  if (view === 'advance-payment' && selectedLoan) {
     const pendingAmount = calculatePendingAmount(selectedLoan);
     return (
-      <AdvancePaymentForm 
-        loanId={selectedLoan.id} 
-        pendingAmount={pendingAmount} 
-        onBack={handleBack} 
+      <AdvancePaymentForm
+        loanId={selectedLoan.id}
+        pendingAmount={pendingAmount}
+        onBack={handleBack}
       />
     );
   }
@@ -239,8 +250,11 @@ export default function LoansSection() {
               {loans.map((loan) => (
                 <Card 
                   key={loan.id} 
-                  className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => selectLoan(loan)}
+                  className={`overflow-hidden cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${selectedLoan?.id === loan.id ? 'border-primary shadow-sm' : ''}`}
+                  onClick={() => {
+                    selectLoan(loan);
+                    navigate(`/loans/${loan.id}`);
+                  }}
                 >
                   <CardContent className="p-0">
                     <div className={`p-4 ${
@@ -298,22 +312,18 @@ export default function LoansSection() {
               ))}
             </div>
           )}
+          
+          {loans.length > 0 && (
+            <Button 
+              variant="outline" 
+              className="w-full mt-4 flex items-center justify-center" 
+              onClick={handleApplyLoan}
+            >
+              <CreditCardIcon className="h-4 w-4 mr-2" />
+              Solicitar nuevo préstamo
+            </Button>
+          )}
         </SectionContainer>
-        
-        <Card className="border-dashed border-2 border-primary/30">
-          <CardContent className="p-4 flex justify-center items-center">
-            <div className="text-center">
-              <div className="bg-primary/10 h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-2">
-                <CreditCardIcon className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-medium text-sm mb-1">¿Necesitas otro préstamo?</h3>
-              <p className="text-xs text-muted-foreground mb-3">Puedes solicitar un nuevo crédito</p>
-              <Button size="sm" className="text-xs" onClick={handleApplyLoan}>
-                Solicitar <ArrowRightIcon className="h-3 w-3 ml-1" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </>
     );
   };
@@ -538,23 +548,23 @@ export default function LoansSection() {
   };
 
   // Log para depuración
-  console.log('Estados:', { 
+  console.log('Estados:', {
     selectedLoan: selectedLoan ? {
       id: selectedLoan.id,
       status: selectedLoan.status,
       scheduleItems: selectedLoan.scheduleItems ? selectedLoan.scheduleItems.length : 0
-    } : null, 
-    showPayments, 
-    showPaymentSchedule 
+    } : null,
+    loanId,
+    view
   });
-  
+
   return (
     <PageContainer>
       <ContentContainer>
-        {!selectedLoan && renderLoansList()}
-        {selectedLoan && !showPayments && !showPaymentSchedule && renderLoanDetails()}
-        {selectedLoan && showPayments && !showPaymentSchedule && renderPayments()}
-        {selectedLoan && !showPayments && showPaymentSchedule && (
+        {!loanId && renderLoansList()}
+        {loanId && selectedLoan && !view && renderLoanDetails()}
+        {loanId && selectedLoan && view === 'payments' && renderPayments()}
+        {loanId && selectedLoan && view === 'schedule' && (
           <LoanPaymentSchedule loan={selectedLoan} onBack={handleBack} />
         )}
       </ContentContainer>
