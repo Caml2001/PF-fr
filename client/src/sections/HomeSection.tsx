@@ -20,13 +20,15 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
 import TopNavMenu from "@/components/TopNavMenu";
+import useCreditInfo from "@/hooks/useCreditInfo";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface HomeSectionProps {
 }
 
 export default function HomeSection() {
-  // Monto preaprobado fijo
-  const preapprovedAmount = 5000;
+  // Obtener información de crédito desde el backend
+  const { creditInfo, isLoading, error } = useCreditInfo();
 
   // Navigation handler using wouter
   const [, setLocation] = useLocation();
@@ -65,13 +67,22 @@ export default function HomeSection() {
           </div>
           
           <div className="mb-5 flex items-center">
-            <h2 className="text-4xl font-bold mr-3">{formatCurrency(preapprovedAmount)}</h2>
-            <BadgeCheckIcon className="h-6 w-6 text-primary" />
+            {isLoading ? (
+              <Skeleton className="h-12 w-40" />
+            ) : error ? (
+              <p className="text-red-500">Error al cargar datos</p>
+            ) : (
+              <>
+                <h2 className="text-4xl font-bold mr-3">{formatCurrency(creditInfo.available)}</h2>
+                <BadgeCheckIcon className="h-6 w-6 text-primary" />
+              </>
+            )}
           </div>
           
           <Button 
             className="w-full mb-5 shadow-sm text-base py-6 rounded-xl"
             onClick={() => handleNav("/apply")}
+            disabled={isLoading || !!error || creditInfo.available <= 0}
           >
             Solicitar ahora <ArrowRightIcon className="h-5 w-5 ml-2" />
           </Button>
