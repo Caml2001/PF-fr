@@ -11,6 +11,9 @@ import {
   ChevronRightIcon,
   ChevronLeftIcon,
   DollarSignIcon,
+  RefreshCwIcon,
+  HourglassIcon,
+  TableIcon
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -19,74 +22,59 @@ import CreditApplicationForm from "@/components/CreditApplicationForm";
 import AdvancePaymentForm from "@/components/AdvancePaymentForm";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer, SectionHeader } from "@/components/Layout";
 import TopNavMenu from "@/components/TopNavMenu";
+import useLoans from "@/hooks/useLoans";
+import { Loan, Payment } from "@/lib/api/loanService";
+import { Skeleton } from "@/components/ui/skeleton";
+import LoanPaymentSchedule from "@/components/LoanPaymentSchedule";
 
-// Datos de ejemplo de préstamos
-const loans = [
-  {
-    id: 1,
-    amount: 5000,
-    status: "active",
-    startDate: "15 feb 2025",
-    endDate: "15 feb 2026",
-    term: 12,
-    nextPayment: {
-      date: "15 mayo 2025",
-      amount: 458.33,
-      status: "pending"
-    },
-    interestRate: 1.2,
-    payments: [
-      { id: 1, date: "15 mar 2025", amount: 458.33, status: "paid" },
-      { id: 2, date: "15 abr 2025", amount: 458.33, status: "paid" },
-      { id: 3, date: "15 may 2025", amount: 458.33, status: "pending" },
-      { id: 4, date: "15 jun 2025", amount: 458.33, status: "pending" },
-      { id: 5, date: "15 jul 2025", amount: 458.33, status: "pending" },
-      { id: 6, date: "15 ago 2025", amount: 458.33, status: "pending" },
-      { id: 7, date: "15 sep 2025", amount: 458.33, status: "pending" },
-      { id: 8, date: "15 oct 2025", amount: 458.33, status: "pending" },
-      { id: 9, date: "15 nov 2025", amount: 458.33, status: "pending" },
-      { id: 10, date: "15 dic 2025", amount: 458.33, status: "pending" },
-      { id: 11, date: "15 ene 2026", amount: 458.33, status: "pending" },
-      { id: 12, date: "15 feb 2026", amount: 458.33, status: "pending" },
-    ]
-  },
-  {
-    id: 2,
-    amount: 10000,
-    status: "completed",
-    startDate: "10 ene 2024",
-    endDate: "10 ene 2025",
-    term: 12,
-    interestRate: 1.0,
-    payments: [
-      { id: 1, date: "10 feb 2024", amount: 883.33, status: "paid" },
-      { id: 2, date: "10 mar 2024", amount: 883.33, status: "paid" },
-      { id: 3, date: "10 abr 2024", amount: 883.33, status: "paid" },
-      { id: 4, date: "10 may 2024", amount: 883.33, status: "paid" },
-      { id: 5, date: "10 jun 2024", amount: 883.33, status: "paid" },
-      { id: 6, date: "10 jul 2024", amount: 883.33, status: "paid" },
-      { id: 7, date: "10 ago 2024", amount: 883.33, status: "paid" },
-      { id: 8, date: "10 sep 2024", amount: 883.33, status: "paid" },
-      { id: 9, date: "10 oct 2024", amount: 883.33, status: "paid" },
-      { id: 10, date: "10 nov 2024", amount: 883.33, status: "paid" },
-      { id: 11, date: "10 dic 2024", amount: 883.33, status: "paid" },
-      { id: 12, date: "10 ene 2025", amount: 883.33, status: "paid" },
-    ]
+// Función para renderizar el estado del préstamo
+const LoanStatusBadge = ({ status }: { status: string }) => {
+  switch (status) {
+    case 'active':
+      return (
+        <Badge variant="default">
+          <CheckCircleIcon className="h-3 w-3 mr-1" />
+          Activo
+        </Badge>
+      );
+    case 'completed':
+      return (
+        <Badge variant="secondary">
+          <CheckCircleIcon className="h-3 w-3 mr-1" />
+          Completado
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+          <HourglassIcon className="h-3 w-3 mr-1" />
+          Pendiente
+        </Badge>
+      );
+    default:
+      return <Badge variant="outline">{status}</Badge>;
   }
-];
-
-type Loan = typeof loans[0];
-type Payment = typeof loans[0]['payments'][0];
+};
 
 export default function LoansSection() {
-  // Estado para controlar qué préstamo está seleccionado para ver detalles
-  const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
-  // Estado para controlar si estamos viendo la vista de pagos
+  // Hook para gestionar préstamos con optimistic UI
+  const { 
+    loans, 
+    isLoading, 
+    isRefreshing,
+    error, 
+    selectedLoan, 
+    selectLoan, 
+    clearSelection, 
+    refreshLoans,
+    isInitialized
+  } = useLoans();
+  
+  // Estados locales para navegación y formularios
   const [showPayments, setShowPayments] = useState(false);
-  // Estado para controlar si se muestra el formulario de solicitud
   const [showApplication, setShowApplication] = useState(false);
-  // Estado para controlar si se muestra el formulario de adelanto de pago
   const [showAdvancePayment, setShowAdvancePayment] = useState(false);
+  const [showPaymentSchedule, setShowPaymentSchedule] = useState(false);
 
   // Función para volver a la vista principal de préstamos
   const handleBack = () => {
@@ -96,14 +84,23 @@ export default function LoansSection() {
       setShowApplication(false);
     } else if (showAdvancePayment) {
       setShowAdvancePayment(false);
+    } else if (showPaymentSchedule) {
+      setShowPaymentSchedule(false);
     } else {
-      setSelectedLoan(null);
+      clearSelection();
     }
   };
 
   // Función para mostrar la vista de pagos
   const handleViewPayments = () => {
     setShowPayments(true);
+  };
+
+  // Función para mostrar la tabla de amortización
+  const handleViewPaymentSchedule = () => {
+    console.log('Mostrando tabla de pagos');
+    setShowPaymentSchedule(true);
+    console.log('Estado showPaymentSchedule:', true);
   };
 
   // Función para mostrar el formulario de solicitud
@@ -116,8 +113,14 @@ export default function LoansSection() {
     setShowAdvancePayment(true);
   };
 
+  // Función de recarga de datos
+  const handleRefresh = () => {
+    refreshLoans(true); // Mostrar el loader
+  };
+
   // Calcular el monto pendiente para un préstamo
   const calculatePendingAmount = (loan: Loan): number => {
+    if (!loan.payments || loan.payments.length === 0) return 0;
     const pendingPayments = loan.payments.filter(p => p.status === "pending");
     return pendingPayments.reduce((sum, payment) => sum + payment.amount, 0);
   };
@@ -139,6 +142,63 @@ export default function LoansSection() {
     );
   }
 
+  // Renderiza el estado de carga o error
+  const renderLoadingOrError = () => {
+    if (isLoading && !isInitialized) {
+      return (
+        <div className="space-y-4">
+          {[1, 2].map(i => (
+            <Card key={i} className="overflow-hidden">
+              <div className="p-4 bg-muted/30">
+                <Skeleton className="h-6 w-24 mb-2" />
+                <Skeleton className="h-8 w-32" />
+              </div>
+              <CardContent className="p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-16 w-full rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      );
+    }
+    
+    if (error) {
+      return (
+        <Card className="bg-red-50 border-red-200">
+          <CardContent className="p-4 text-center">
+            <AlertCircleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <p className="text-red-700">{error}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={handleRefresh}>
+              <RefreshCwIcon className="h-4 w-4 mr-2" />
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    if (isInitialized && loans.length === 0) {
+      return (
+        <Card className="bg-accent/50 border-0">
+          <CardContent className="p-4 text-center">
+            <CreditCardIcon className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-40" />
+            <p className="text-muted-foreground">No tienes préstamos activos</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={handleRefresh}>
+              <RefreshCwIcon className="h-4 w-4 mr-2" />
+              Actualizar
+            </Button>
+          </CardContent>
+        </Card>
+      );
+    }
+    
+    return null;
+  };
+
   // Renderiza la lista de préstamos
   const renderLoansList = () => {
     return (
@@ -147,8 +207,21 @@ export default function LoansSection() {
           title="Mis Préstamos"
           action={
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="text-xs">
-                Ver historial
+              {isRefreshing && (
+                <div className="text-xs text-muted-foreground flex items-center">
+                  <RefreshCwIcon className="h-3 w-3 mr-1 animate-spin" />
+                  Actualizando...
+                </div>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs"
+                onClick={handleRefresh}
+                disabled={isLoading || isRefreshing}
+              >
+                <RefreshCwIcon className={`h-3 w-3 mr-1 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Actualizar
               </Button>
               {/* Menú Silk solo en navegador (no PWA) */}
               {!window.matchMedia('(display-mode: standalone)').matches && !(window.navigator as any).standalone && (
@@ -159,54 +232,72 @@ export default function LoansSection() {
         />
         
         <SectionContainer>
-          <div className="space-y-4">
-            {loans.map((loan) => (
-              <Card 
-                key={loan.id} 
-                className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => setSelectedLoan(loan)}
-              >
-                <CardContent className="p-0">
-                  <div className={`p-4 ${loan.status === 'active' ? 'bg-primary/10' : 'bg-muted/50'}`}>
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <span className="text-xs text-muted-foreground">Préstamo #{loan.id}</span>
-                        <h3 className="text-xl font-bold">{formatCurrency(loan.amount)}</h3>
-                      </div>
-                      
-                      <Badge variant={loan.status === 'active' ? "default" : "secondary"}>
-                        {loan.status === 'active' ? 'Activo' : 'Completado'}
-                      </Badge>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <div className="flex items-center text-muted-foreground">
-                        <CalendarIcon className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Plazo: {loan.term} meses</span>
-                      </div>
-                      <div className="flex items-center text-muted-foreground">
-                        <ClockIcon className="h-4 w-4 mr-1" />
-                        <span className="text-xs">{loan.startDate}</span>
+          {renderLoadingOrError()}
+          
+          {(!isLoading || isInitialized) && !error && loans.length > 0 && (
+            <div className="space-y-4">
+              {loans.map((loan) => (
+                <Card 
+                  key={loan.id} 
+                  className="overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+                  onClick={() => selectLoan(loan)}
+                >
+                  <CardContent className="p-0">
+                    <div className={`p-4 ${
+                      loan.status === 'active' 
+                        ? 'bg-primary/10' 
+                        : loan.status === 'pending' 
+                          ? 'bg-amber-50' 
+                          : 'bg-muted/50'
+                    }`}>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-xs text-muted-foreground">Préstamo #{loan.id.slice(-4)}</span>
+                          <h3 className="text-xl font-bold">{formatCurrency(loan.amount)}</h3>
+                        </div>
+                        
+                        <LoanStatusBadge status={loan.status} />
                       </div>
                     </div>
                     
-                    {loan.status === 'active' && loan.nextPayment && (
-                      <div className="bg-accent rounded-lg p-3 flex justify-between items-center">
-                        <div>
-                          <span className="text-xs text-muted-foreground">Próximo pago</span>
-                          <p className="font-medium">{formatCurrency(loan.nextPayment.amount)}</p>
-                          <span className="text-xs">{loan.nextPayment.date}</span>
+                    <div className="p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center text-muted-foreground">
+                          <CalendarIcon className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Plazo: {loan.term} {loan.term === 1 ? 'semana' : 'semanas'}</span>
                         </div>
-                        <ChevronRightIcon className="h-5 w-5 text-primary" />
+                        <div className="flex items-center text-muted-foreground">
+                          <ClockIcon className="h-4 w-4 mr-1" />
+                          <span className="text-xs">{loan.startDate}</span>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                      
+                      {loan.status === 'active' && loan.nextPayment && (
+                        <div className="bg-accent rounded-lg p-3 flex justify-between items-center">
+                          <div>
+                            <span className="text-xs text-muted-foreground">Próximo pago</span>
+                            <p className="font-medium">{formatCurrency(loan.nextPayment.amount)}</p>
+                            <span className="text-xs">{loan.nextPayment.date}</span>
+                          </div>
+                          <ChevronRightIcon className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                      
+                      {loan.status === 'pending' && (
+                        <div className="bg-amber-50 rounded-lg p-3 flex justify-between items-center border border-amber-200">
+                          <div>
+                            <span className="text-xs text-amber-800">Pendiente de aprobación</span>
+                            <p className="font-medium text-amber-900">Solicitado el {loan.startDate}</p>
+                          </div>
+                          <HourglassIcon className="h-5 w-5 text-amber-500" />
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </SectionContainer>
         
         <Card className="border-dashed border-2 border-primary/30">
@@ -231,22 +322,37 @@ export default function LoansSection() {
   const renderLoanDetails = () => {
     if (!selectedLoan) return null;
     
+    // Log para depuración
+    console.log('Estado del préstamo:', selectedLoan.status);
+    console.log('Préstamo seleccionado:', selectedLoan);
+    
+    // Calcular totales si no están disponibles en details
+    const totalInterest = selectedLoan.details?.totalInterest || 
+      (selectedLoan.amount * selectedLoan.interestRate / 100 * (selectedLoan.term / 52));
+    
+    const totalAmount = selectedLoan.details?.totalAmount || 
+      (selectedLoan.amount + totalInterest + selectedLoan.commissionAmount);
+    
     return (
       <>
         <PageHeader title="Detalles del Préstamo" onBack={handleBack} />
         
         <SectionContainer>
           <Card className="overflow-hidden">
-            <div className={`p-4 ${selectedLoan.status === 'active' ? 'bg-primary/10' : 'bg-muted/50'}`}>
+            <div className={`p-4 ${
+              selectedLoan.status === 'active' 
+                ? 'bg-primary/10' 
+                : selectedLoan.status === 'pending' 
+                  ? 'bg-amber-50' 
+                  : 'bg-muted/50'
+            }`}>
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id}</span>
+                  <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id.slice(-4)}</span>
                   <h3 className="text-xl font-bold">{formatCurrency(selectedLoan.amount)}</h3>
                 </div>
                 
-                <Badge variant={selectedLoan.status === 'active' ? "default" : "secondary"}>
-                  {selectedLoan.status === 'active' ? 'Activo' : 'Completado'}
-                </Badge>
+                <LoanStatusBadge status={selectedLoan.status} />
               </div>
             </div>
             
@@ -262,11 +368,11 @@ export default function LoansSection() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Plazo</p>
-                  <p className="font-medium">{selectedLoan.term} meses</p>
+                  <p className="font-medium">{selectedLoan.term} {selectedLoan.term === 1 ? 'semana' : 'semanas'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Tasa</p>
-                  <p className="font-medium">{selectedLoan.interestRate}% mensual</p>
+                  <p className="font-medium">{selectedLoan.interestRate.toFixed(2)}% anual</p>
                 </div>
               </div>
               
@@ -283,13 +389,38 @@ export default function LoansSection() {
                 </div>
               )}
               
+              {selectedLoan.status === 'pending' && (
+                <div className="bg-amber-50 rounded-lg p-3 mb-4 border border-amber-200">
+                  <p className="text-xs text-amber-800">Estado de solicitud</p>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium text-amber-900">Pendiente de aprobación</p>
+                      <span className="text-xs text-amber-800">Solicitado el {selectedLoan.startDate}</span>
+                    </div>
+                    <HourglassIcon className="h-5 w-5 text-amber-500" />
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-3">
                 <Button 
                   variant="outline" 
                   className="w-full justify-between"
                   onClick={handleViewPayments}
                 >
-                  <span>Ver pagos</span>
+                  <span>Ver historial de pagos</span>
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between"
+                  onClick={handleViewPaymentSchedule}
+                >
+                  <div className="flex items-center">
+                    <TableIcon className="h-4 w-4 mr-2" />
+                    <span>Ver tabla de pagos</span>
+                  </div>
                   <ChevronRightIcon className="h-4 w-4" />
                 </Button>
                 
@@ -316,13 +447,17 @@ export default function LoansSection() {
                 <span>{formatCurrency(selectedLoan.amount)}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-sm text-muted-foreground">Comisión</span>
+                <span>{formatCurrency(selectedLoan.commissionAmount)}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-sm text-muted-foreground">Interés total</span>
-                <span>{formatCurrency(selectedLoan.amount * selectedLoan.interestRate / 100 * selectedLoan.term)}</span>
+                <span>{formatCurrency(totalInterest)}</span>
               </div>
               <Separator className="my-2" />
               <div className="flex justify-between font-medium">
                 <span>Total a pagar</span>
-                <span>{formatCurrency(selectedLoan.amount + selectedLoan.amount * selectedLoan.interestRate / 100 * selectedLoan.term)}</span>
+                <span>{formatCurrency(totalAmount)}</span>
               </div>
             </div>
           </CardContent>
@@ -341,41 +476,53 @@ export default function LoansSection() {
         
         <div className="mb-4 flex justify-between items-center">
           <div>
-            <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id}</span>
+            <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id.slice(-4)}</span>
             <h3 className="text-lg font-bold">{formatCurrency(selectedLoan.amount)}</h3>
           </div>
-          <Badge variant={selectedLoan.status === 'active' ? "default" : "secondary"}>
-            {selectedLoan.status === 'active' ? 'Activo' : 'Completado'}
-          </Badge>
+          <LoanStatusBadge status={selectedLoan.status} />
         </div>
         
         <SectionContainer>
-          <div className="space-y-3">
-            {selectedLoan.payments.map((payment) => (
-              <Card key={payment.id}>
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                      <span className="text-xs text-muted-foreground">Pago {payment.id} • {payment.date}</span>
+          {selectedLoan.status === 'pending' ? (
+            <Card className="bg-amber-50 border border-amber-200">
+              <CardContent className="p-4 text-center">
+                <p className="text-amber-800">El historial de pagos estará disponible una vez que se apruebe el préstamo</p>
+              </CardContent>
+            </Card>
+          ) : selectedLoan.payments && selectedLoan.payments.length > 0 ? (
+            <div className="space-y-3">
+              {selectedLoan.payments.map((payment) => (
+                <Card key={payment.id}>
+                  <CardContent className="p-3">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{formatCurrency(payment.amount)}</p>
+                        <span className="text-xs text-muted-foreground">Pago • {payment.date}</span>
+                      </div>
+                      
+                      {payment.status === 'paid' ? (
+                        <div className="flex items-center text-green-600">
+                          <CheckCircleIcon className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Pagado</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-amber-600">
+                          <AlertCircleIcon className="h-4 w-4 mr-1" />
+                          <span className="text-xs">Pendiente</span>
+                        </div>
+                      )}
                     </div>
-                    
-                    {payment.status === 'paid' ? (
-                      <div className="flex items-center text-green-600">
-                        <CheckCircleIcon className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Pagado</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center text-amber-600">
-                        <AlertCircleIcon className="h-4 w-4 mr-1" />
-                        <span className="text-xs">Pendiente</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-accent/50 border-0">
+              <CardContent className="p-4 text-center">
+                <p className="text-muted-foreground">No hay pagos registrados aún</p>
+              </CardContent>
+            </Card>
+          )}
         </SectionContainer>
         
         {selectedLoan.status === 'active' && (
@@ -390,12 +537,26 @@ export default function LoansSection() {
     );
   };
 
+  // Log para depuración
+  console.log('Estados:', { 
+    selectedLoan: selectedLoan ? {
+      id: selectedLoan.id,
+      status: selectedLoan.status,
+      scheduleItems: selectedLoan.scheduleItems ? selectedLoan.scheduleItems.length : 0
+    } : null, 
+    showPayments, 
+    showPaymentSchedule 
+  });
+  
   return (
     <PageContainer>
       <ContentContainer>
         {!selectedLoan && renderLoansList()}
-        {selectedLoan && !showPayments && renderLoanDetails()}
-        {selectedLoan && showPayments && renderPayments()}
+        {selectedLoan && !showPayments && !showPaymentSchedule && renderLoanDetails()}
+        {selectedLoan && showPayments && !showPaymentSchedule && renderPayments()}
+        {selectedLoan && !showPayments && showPaymentSchedule && (
+          <LoanPaymentSchedule loan={selectedLoan} onBack={handleBack} />
+        )}
       </ContentContainer>
     </PageContainer>
   );

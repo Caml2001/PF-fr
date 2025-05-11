@@ -10,7 +10,7 @@ import { formatCurrency } from "@/lib/utils";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer } from "@/components/Layout";
 
 interface AdvancePaymentFormProps {
-  loanId: number;
+  loanId: string;
   pendingAmount: number;
   onBack: () => void;
 }
