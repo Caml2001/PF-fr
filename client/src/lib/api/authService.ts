@@ -34,15 +34,33 @@ export interface AuthResponse {
   error?: string; 
 }
 
+export interface RefreshTokenResponse {
+  token: string;
+}
+
+// Función para guardar tokens en localStorage
+const saveTokens = (accessToken: string, refreshToken: string) => {
+  localStorage.setItem('authToken', accessToken);
+  localStorage.setItem('refreshToken', refreshToken);
+  // Update the Authorization header for future requests
+  apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+};
+
+// Función para obtener el refresh token
+export const getRefreshToken = (): string | null => {
+  return localStorage.getItem('refreshToken');
+};
+
 export const login = async (credentials: AuthCredentials): Promise<AuthResponse> => {
   try {
     const response = await apiClient.post<AuthResponse>('/auth/signin', credentials);
 
     // Store the access token in localStorage
     if (response.data.session?.access_token) {
-      localStorage.setItem('authToken', response.data.session.access_token);
-      // Update the Authorization header for future requests
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.session.access_token}`;
+      saveTokens(
+        response.data.session.access_token,
+        response.data.session.refresh_token
+      );
     }
 
     return response.data;
@@ -64,15 +82,55 @@ export const signup = async (data: SignupData): Promise<AuthResponse> => {
 
     // Store the access token in localStorage
     if (response.data.session?.access_token) {
-      localStorage.setItem('authToken', response.data.session.access_token);
-      // Update the Authorization header for future requests
-      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.session.access_token}`;
+      saveTokens(
+        response.data.session.access_token,
+        response.data.session.refresh_token
+      );
     }
 
     return response.data;
   } catch (error: any) {
     console.error("Signup API error:", error.response?.data || error.message);
     throw new Error(error.response?.data?.error || 'Signup failed');
+  }
+};
+
+// Función para refrescar el token de acceso usando el refresh token
+export const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = getRefreshToken();
+  
+  if (!refreshToken) {
+    console.error("No refresh token available");
+    return null;
+  }
+
+  try {
+    // Crear una instancia de axios sin interceptores para evitar bucles infinitos
+    const axiosInstance = apiClient.create({
+      baseURL: apiClient.defaults.baseURL,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+
+    const response = await axiosInstance.post<RefreshTokenResponse>('/auth/refresh-token', {
+      token: refreshToken
+    });
+
+    if (response.data.token) {
+      // Guardar el nuevo access token
+      localStorage.setItem('authToken', response.data.token);
+      // Actualizar el header de autorización
+      apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data.token;
+    }
+    return null;
+  } catch (error: any) {
+    console.error("Error refreshing token:", error.response?.data || error.message);
+    // Si hay error al refrescar, limpiamos ambos tokens
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    return null;
   }
 };
 
