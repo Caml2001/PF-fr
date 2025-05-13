@@ -36,8 +36,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Envolver la inicialización en una función que se ejecuta inmediatamente
-// y además exportar la app para Vercel
 (async () => {
   const server = await registerRoutes(app);
 
@@ -58,17 +56,14 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Iniciar el servidor solo si no estamos en Vercel (donde se maneja de otra forma)
-  if (process.env.VERCEL !== "1") {
-    const port = process.env.PORT || 5001;
-    server.listen({
-      port,
-      host: "0.0.0.0"
-    }, () => {
-      log(`serving on port ${port}`);
-    });
-  }
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = 5001;
+  server.listen({
+    port,
+    host: "0.0.0.0"
+  }, () => {
+    log(`serving on port ${port}`);
+  });
 })();
-
-// Exportar la app para Vercel
-export default app;
