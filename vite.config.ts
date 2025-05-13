@@ -33,5 +33,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@mantine/core', '@mantine/hooks', '@mantine/form'],
+          utils: ['axios', 'zod']
+        }
+      }
+    },
+    chunkSizeWarningLimit: 500,
   },
 });
