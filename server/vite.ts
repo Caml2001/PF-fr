@@ -23,7 +23,7 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: true as true,
   };
 
   const vite = await createViteServer({
@@ -68,18 +68,33 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
-
+  // Intenta buscar en la ruta normal
+  let distPath = path.resolve(import.meta.dirname, "public");
+  
+  // Si no existe, prueba con la ruta relativa a la raíz del proyecto
   if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`,
-    );
+    distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
   }
 
-  app.use(express.static(distPath));
+  // Si aún no existe, usa la ruta absoluta en Vercel
+  if (!fs.existsSync(distPath)) {
+    distPath = path.resolve("/vercel/path0/dist/public");
+  }
+
+  if (!fs.existsSync(distPath)) {
+    log(`Advertencia: No se encontró la carpeta estática en: ${distPath}`);
+    // Continuar incluso si no se encuentra la carpeta, para permitir que la API funcione
+  } else {
+    log(`Sirviendo archivos estáticos desde: ${distPath}`);
+    app.use(express.static(distPath));
+  }
 
   // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", (req, res) => {
+    if (fs.existsSync(path.join(distPath, "index.html"))) {
+      res.sendFile(path.resolve(distPath, "index.html"));
+    } else {
+      res.status(200).send("API funcionando. Archivos estáticos no encontrados.");
+    }
   });
 }
