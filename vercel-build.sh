@@ -1,22 +1,16 @@
 #!/bin/bash
 
+# Imprimir mensaje de inicio
+echo "Iniciando build personalizado para Vercel..."
+
 # Ejecutar el build normal
 npm run build
 
-# Crear un pequeño script que ayude a Vercel a iniciar la aplicación correctamente
-cat > vercel.js << EOF
-import { createServer } from "http";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
-import express from "express";
-import fs from "fs";
-
-// Importar el archivo compilado
-import "./dist/index.js";
-
-// Este archivo existe solo para asegurar que Vercel inicie correctamente la aplicación
-console.log("Vercel deployment helper initialized");
+# Crear un archivo index.js en la raíz que importa el archivo compilado
+cat > index.js << EOF
+// Este archivo es un punto de entrada para Vercel
+import './dist/index.js';
+console.log('Vercel deployment initialized');
 EOF
 
-# Dar permisos de ejecución al script
-chmod +x vercel-build.sh 
+echo "Build personalizado completado." 
