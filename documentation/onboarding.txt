@@ -28,7 +28,7 @@ Cuarto paso:
 * Apellido Materno
 * Fecha de nacimiento
 * Sexo
-
+s
 Petición a /onboarding/temp
 OnboardingStatus: "PROFILE_PENDING"
 
