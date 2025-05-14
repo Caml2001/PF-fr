@@ -8,7 +8,6 @@ import OnboardingFlow from "./components/OnboardingFlow";
 import CreditApplicationForm from "./components/CreditApplicationForm";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
 import { ContentContainer, PageContainer } from "./components/Layout";
-import { useIsPWA } from "./hooks/useIsPWA";
 import { Router, Route, Switch, useLocation, useRoute, Redirect } from "wouter";
 import LoanPaymentSchedule from "./components/LoanPaymentSchedule";
 import AdvancePaymentForm from "./components/AdvancePaymentForm";
@@ -37,24 +36,6 @@ const RedirectToRegisterAccount = () => {
   return <Redirect to="/register/account" />;
 };
 
-// Root route handler - decide donde dirigir basado en el estado de autenticación y onboarding
-const RootRouteHandler = () => {
-  // Ensure we're in a browser environment before accessing localStorage
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  
-  const token = localStorage.getItem('authToken');
-  
-  if (!token) {
-    debug("Root: No hay token, redirigiendo a login");
-    return <Redirect to="/login" />;
-  }
-  
-  debug("Root: Token presente, redirigiendo a home");
-  return <Redirect to="/home" />;
-};
-
 // Spinner Component
 const Spinner = () => (
   <svg 
@@ -81,8 +62,28 @@ const Spinner = () => (
 
 export default function App() {
   // Safely use the isPWA hook
-  const isPWA = typeof window !== 'undefined' ? useIsPWA() : false;
-  
+  // const isPWA = typeof window !== 'undefined' ? useIsPWA() : false; // Comentado temporalmente
+  const [isPWA, setIsPWA] = useState(false); // Inicialización directa con useState
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      // Lógica de useIsPWA movida aquí temporalmente
+      const checkPWA = () => {
+        const standalone = 
+          window.matchMedia('(display-mode: standalone)').matches ||
+          (window.navigator as any).standalone === true;
+        setIsPWA(standalone);
+        debug(`[PWA Check] Standalone: ${standalone}`)
+      };
+      
+      checkPWA();
+      // Considerar si el listener de resize es realmente necesario o si causa re-renders excesivos.
+      // Por ahora lo mantenemos para replicar el hook original.
+      window.addEventListener('resize', checkPWA);
+      return () => window.removeEventListener('resize', checkPWA);
+    }
+  }, []); // Ejecutar solo una vez al montar
+
   // Initialize token from localStorage immediately on component mount
   const [token, setToken] = useState<string | null>(() => {
     return typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
@@ -596,7 +597,19 @@ export default function App() {
               <CreditApplicationForm onLogout={handleLogout} />
             </Route>
             <Route path="/">
-              {() => <RootRouteHandler />}
+              {() => {
+                // Esta lógica se ejecuta si se llega a "/" DESPUÉS de las redirecciones iniciales.
+                // initializeAuthState ya debería haber redirigido a /home, /login, o /register/account.
+                // Esto actúa como un fallback por si acaso se aterriza en "/" directamente.
+                debug("[ROUTE /] Evaluando fallback de redirección desde raíz.");
+                if (token && completedStatuses.includes(onboardingStatus || '')) {
+                  return <RedirectToHome />;
+                } else if (token) { // Token pero onboardingStatus no es completo
+                  return <RedirectToRegisterAccount />;
+                } else { // No hay token
+                  return <RedirectToLogin />;
+                }
+              }}
             </Route>
             <Route>
               {() => <RedirectToHome />}
