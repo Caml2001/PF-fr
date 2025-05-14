@@ -51,6 +51,28 @@ export const getRefreshToken = (): string | null => {
   return localStorage.getItem('refreshToken');
 };
 
+// Función para verificar si un token JWT está expirado o a punto de expirar
+export const isTokenExpired = (token: string, expirationBuffer: number = 300000): boolean => {
+  if (!token) {
+    return true;
+  }
+  
+  try {
+    // Decodificar el token (la parte del payload que está en la posición 1)
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    
+    // JWT exp está en segundos, convertir a milisegundos
+    const expirationTime = payload.exp * 1000;
+    const currentTime = Date.now();
+    
+    // Está expirado si el tiempo actual + buffer es mayor al tiempo de expiración
+    return currentTime + expirationBuffer > expirationTime;
+  } catch (error) {
+    console.error("Error verificando expiración del token:", error);
+    return true; // En caso de error, consideramos que el token está expirado
+  }
+};
+
 export const login = async (credentials: AuthCredentials): Promise<AuthResponse> => {
   try {
     const response = await apiClient.post<AuthResponse>('/auth/signin', credentials);

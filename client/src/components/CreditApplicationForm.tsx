@@ -140,6 +140,52 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
           setMaxAmount(defaultProduct.maxAmount);
           setAmount(Math.min(1000, defaultProduct.maxAmount));
           setPaymentTerm(String((defaultProduct.fixedTerm || 1) * 7));
+          
+          // Verificar si hay una solicitud guardada para recuperar
+          try {
+            const savedApplicationJson = localStorage.getItem('savedLoanApplication');
+            if (savedApplicationJson) {
+              const savedApplication = JSON.parse(savedApplicationJson);
+              const timestamp = new Date(savedApplication.timestamp);
+              const now = new Date();
+              const diff = now.getTime() - timestamp.getTime();
+              const minutesElapsed = diff / (1000 * 60);
+              
+              // Solo recuperar si la solicitud guardada es reciente (menos de 30 minutos)
+              if (minutesElapsed < 30) {
+                // Buscar producto guardado
+                const savedProduct = expressProducts.find(p => p.id === savedApplication.productId);
+                if (savedProduct) {
+                  setSelectedProduct(savedProduct);
+                  setPaymentTerm(savedApplication.term);
+                  
+                  // Asegurarse de que el monto esté dentro de los límites
+                  const savedAmount = Number(savedApplication.amount);
+                  if (!isNaN(savedAmount) && 
+                      savedAmount >= savedProduct.minAmount && 
+                      savedAmount <= savedProduct.maxAmount) {
+                    setAmount(savedAmount);
+                  } else {
+                    setAmount(Math.min(1000, savedProduct.maxAmount));
+                  }
+                  
+                  // Establecer cuenta guardada
+                  setSelectedAccount(savedApplication.accountId);
+                  
+                  // Mostrar mensaje al usuario
+                  setTimeout(() => {
+                    setError("Hemos recuperado tu solicitud anterior. Puedes continuar desde donde lo dejaste.");
+                  }, 1000);
+                }
+              }
+              
+              // Eliminar solicitud guardada
+              localStorage.removeItem('savedLoanApplication');
+            }
+          } catch (e) {
+            console.error("Error al recuperar solicitud guardada:", e);
+            // No interrumpir el flujo normal si hay un error al recuperar
+          }
         }
       } catch (error) {
         console.error("Error al cargar productos de préstamo:", error);
@@ -271,8 +317,32 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
       setIsSubmitSuccessful(false);
       setOptimisticLoan(null);
       
+      // Verificar si es error de autenticación (401)
+      if (error.response?.status === 401) {
+        // Guardar el estado actual de la solicitud en localStorage para recuperarlo después de iniciar sesión
+        try {
+          const savedState = {
+            productId: selectedProduct.id,
+            amount: amount,
+            term: paymentTerm,
+            accountId: selectedAccount,
+            timestamp: new Date().toISOString()
+          };
+          localStorage.setItem('savedLoanApplication', JSON.stringify(savedState));
+          
+          // Mostrar mensaje y redirigir después de un breve momento
+          setError("Tu sesión ha expirado. Serás redirigido para iniciar sesión nuevamente.");
+          setTimeout(() => {
+            // Redirigir a login pero conservando información de retorno
+            window.location.href = `/login?returnTo=${encodeURIComponent('/apply')}`;
+          }, 2000);
+        } catch (e) {
+          console.error("Error al guardar estado de la solicitud:", e);
+          setError("Tu sesión ha expirado. Por favor vuelve a iniciar sesión e intenta nuevamente.");
+        }
+      } 
       // Manejar mensajes de error del servidor
-      if (error.response?.data?.message) {
+      else if (error.response?.data?.message) {
         setError(error.response.data.message);
       } else {
         setError("No se pudo procesar tu solicitud. Intenta nuevamente.");

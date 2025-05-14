@@ -100,11 +100,14 @@ apiClient.interceptors.response.use(
           // Si no pudimos obtener un nuevo token, procesamos la cola con error
           processQueue(new Error('Could not refresh token'));
           
-          // Limpiamos tokens y redirigimos a login
+          // Limpiamos tokens y preparamos redirección
           localStorage.removeItem('authToken');
           localStorage.removeItem('refreshToken');
           
-          if (window.location.pathname !== '/login') {
+          // Verificamos que no estemos ya en login o en proceso de registro para evitar redirecciones circulares
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/login' && !currentPath.startsWith('/register')) {
+            console.log("Sesión expirada. Redirigiendo a login...");
             window.location.href = '/login';
           }
           
@@ -114,11 +117,14 @@ apiClient.interceptors.response.use(
         // En caso de error durante el refresh, procesamos la cola con error
         processQueue(refreshError);
         
-        // Limpiamos tokens y redirigimos a login
+        // Limpiamos tokens y preparamos redirección
         localStorage.removeItem('authToken');
         localStorage.removeItem('refreshToken');
         
-        if (window.location.pathname !== '/login') {
+        // Verificamos que no estemos ya en login o en proceso de registro para evitar redirecciones circulares
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && !currentPath.startsWith('/register')) {
+          console.log("Sesión expirada. Redirigiendo a login...");
           window.location.href = '/login';
         }
         

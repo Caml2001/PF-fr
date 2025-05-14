@@ -56,8 +56,20 @@ export const applyForCredit = async (applicationData: LoanApplicationData): Prom
   try {
     const response = await apiClient.post('api/loans', applicationData);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al solicitar préstamo:', error);
+    
+    // Verificar si es un error de autenticación y no hay token
+    if (error.response?.status === 401) {
+      // Intentar obtener más información del error
+      const errorDetail = error.response?.data?.message || 'Tu sesión ha expirado';
+      console.error('Error de autenticación:', errorDetail);
+      
+      // Notificar al usuario sobre la expiración de la sesión
+      // (esto también se manejará en el componente)
+    }
+    
+    // Conservar la estructura del error original para que el componente pueda manejarlo
     throw error;
   }
 };
