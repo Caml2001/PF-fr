@@ -27,11 +27,39 @@ export interface LoanProduct {
   fixedTerm?: number;
 }
 
-export const applyForCredit = async (applicationData: any) => {
-  // const response = await apiClient.post('/credit/apply', applicationData);
-  // return response.data;
-  console.warn('applyForCredit not implemented');
-  return Promise.resolve({}); // Placeholder data
+// Interfaz para la solicitud de préstamo
+export interface LoanApplicationData {
+  productId: string;
+  principal: number;
+  term?: number;
+  paymentAmount?: number;
+  startDate?: string;
+}
+
+// Interfaz para la respuesta de préstamo
+export interface LoanResponse {
+  id: string;
+  status: string;
+  principal: number;
+  interestRate: number;
+  term: number;
+  commissionAmount: number;
+  disbursedAmount: number;
+  startDate: string;
+  dueDate: string;
+  productName: string;
+  createdAt: string;
+  // Otros campos según schema LoanResponseSchema
+}
+
+export const applyForCredit = async (applicationData: LoanApplicationData): Promise<LoanResponse> => {
+  try {
+    const response = await apiClient.post('api/loans', applicationData);
+    return response.data;
+  } catch (error) {
+    console.error('Error al solicitar préstamo:', error);
+    throw error;
+  }
 };
 
 export const getCreditStatus = async (applicationId: string) => {

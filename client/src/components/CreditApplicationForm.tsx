@@ -10,21 +10,103 @@ import {
   ArrowRightIcon,
   CalendarIcon,
   CheckIcon,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { PageContainer, ContentContainer, PageHeader, SectionContainer, SectionHeader } from "./Layout";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Sheet } from "@silk-hq/components";
-import { getLoanProducts, LoanProduct, applyForCredit } from "../lib/api/creditService";
+import { getLoanProducts, LoanProduct, applyForCredit, LoanApplicationData, LoanResponse } from "../lib/api/creditService";
 
 interface CreditApplicationFormProps {
   onLogout: () => void;
 }
 
+// Componente de Skeleton Loader para el formulario
+const SkeletonLoader = () => {
+  return (
+    <>
+      <SectionContainer>
+        <div className="h-6 w-48 bg-accent rounded-md animate-pulse mb-1"></div>
+        <div className="h-4 w-64 bg-accent rounded-md animate-pulse mb-6"></div>
+        
+        <Card className="overflow-hidden mb-4">
+          <div className="bg-primary/5 p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="h-3 w-32 bg-accent rounded-md animate-pulse mb-1"></div>
+                <div className="h-5 w-20 bg-accent rounded-md animate-pulse"></div>
+              </div>
+              <div className="h-6 w-24 bg-accent rounded-full animate-pulse"></div>
+            </div>
+          </div>
+          
+          <CardContent className="p-4">
+            <div className="mb-4">
+              <div className="h-4 w-32 bg-accent rounded-md animate-pulse mb-3"></div>
+              <div className="h-5 w-full bg-accent rounded-md animate-pulse mb-4"></div>
+              <div className="flex justify-between">
+                <div className="h-3 w-8 bg-accent rounded-md animate-pulse"></div>
+                <div className="h-3 w-8 bg-accent rounded-md animate-pulse"></div>
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <div className="h-4 w-32 bg-accent rounded-md animate-pulse mb-3"></div>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-16 bg-accent rounded-lg animate-pulse"></div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="h-20 bg-accent rounded-lg animate-pulse mb-4"></div>
+          </CardContent>
+        </Card>
+        
+        <Card className="overflow-hidden mb-4">
+          <CardContent className="p-4">
+            <div className="h-5 w-40 bg-accent rounded-md animate-pulse mb-3"></div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <div className="h-4 w-32 bg-accent rounded-md animate-pulse"></div>
+                <div className="h-4 w-16 bg-accent rounded-md animate-pulse"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 w-24 bg-accent rounded-md animate-pulse"></div>
+                <div className="h-4 w-16 bg-accent rounded-md animate-pulse"></div>
+              </div>
+              <div className="h-px w-full bg-accent animate-pulse my-2"></div>
+              <div className="flex justify-between">
+                <div className="h-4 w-16 bg-accent rounded-md animate-pulse"></div>
+                <div className="h-4 w-20 bg-accent rounded-md animate-pulse"></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </SectionContainer>
+      
+      <SectionContainer>
+        <div className="h-4 w-32 bg-accent rounded-md animate-pulse mb-3"></div>
+        <Card className="overflow-hidden mb-4">
+          <CardContent className="p-4">
+            <div className="h-10 w-full bg-accent rounded-md animate-pulse"></div>
+          </CardContent>
+        </Card>
+        
+        <div className="h-20 bg-accent rounded-lg animate-pulse"></div>
+      </SectionContainer>
+      
+      <div className="h-12 w-full bg-accent rounded-md animate-pulse"></div>
+    </>
+  );
+};
+
 export default function CreditApplicationForm({ onLogout }: CreditApplicationFormProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [loanProducts, setLoanProducts] = useState<LoanProduct[]>([]);
   const [expressProducts, setExpressProducts] = useState<LoanProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<LoanProduct | null>(null);
@@ -33,11 +115,16 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
   const [minAmount, setMinAmount] = useState(0);
   const [maxAmount, setMaxAmount] = useState(4000);
   
+  // Estado para optimistic UI
+  const [isSubmitSuccessful, setIsSubmitSuccessful] = useState(false);
+  const [optimisticLoan, setOptimisticLoan] = useState<LoanResponse | null>(null);
+  
   // Cargar productos de préstamo
   useEffect(() => {
     const fetchLoanProducts = async () => {
       try {
         setLoading(true);
+        setError(null);
         const products = await getLoanProducts();
         
         // Filtrar productos express
@@ -56,7 +143,7 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
         }
       } catch (error) {
         console.error("Error al cargar productos de préstamo:", error);
-        console.error("No se pudieron cargar los productos de préstamo");
+        setError("No se pudieron cargar los productos disponibles. Por favor, intenta nuevamente.");
       } finally {
         setLoading(false);
       }
@@ -126,49 +213,157 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
     { value: "cuenta3", label: "Banorte ****9101" },
   ];
 
+  // Crear datos optimistas
+  const createOptimisticLoan = (): LoanResponse => {
+    const today = new Date();
+    const dueDate = new Date(today);
+    dueDate.setDate(dueDate.getDate() + parseInt(paymentTerm));
+    
+    return {
+      id: "temp-" + Date.now(),
+      status: "processing",
+      principal: amount,
+      interestRate: selectedProduct?.minRate || 0,
+      term: parseInt(paymentTerm) / 7, // Convertir días a semanas
+      commissionAmount: commission,
+      disbursedAmount: amountToReceive,
+      startDate: today.toISOString(),
+      dueDate: dueDate.toISOString(),
+      productName: selectedProduct?.name || "Crédito Express",
+      createdAt: today.toISOString(),
+    };
+  };
+
   // Manejar la solicitud de préstamo
   const handleSubmit = async () => {
     if (!selectedProduct || !selectedAccount) {
-      console.error("Por favor selecciona una cuenta para recibir el depósito");
+      setError("Por favor selecciona una cuenta para recibir el depósito");
       return;
     }
     
+    // Formato correcto según la API
+    const loanRequest: LoanApplicationData = {
+      productId: selectedProduct.id,
+      principal: amount,
+      // Para productos express, el term debe coincidir con el fixedTerm del producto
+      term: selectedProduct.fixedTerm // Ya está en semanas, no necesitamos convertir
+    };
+    
     try {
       setSubmitting(true);
+      setError(null);
       
-      // Datos de la solicitud
-      const applicationData = {
-        productId: selectedProduct.id,
-        amount: amount,
-        term: parseInt(paymentTerm),
-        accountId: selectedAccount
-      };
+      // Crear y mostrar datos optimistas inmediatamente
+      const optimistic = createOptimisticLoan();
+      setOptimisticLoan(optimistic);
+      setIsSubmitSuccessful(true);
       
-      // Enviar solicitud
-      await applyForCredit(applicationData);
+      // Enviar solicitud real
+      const response = await applyForCredit(loanRequest);
       
-      // Mostrar mensaje de éxito y redireccionar
-      console.log("Solicitud enviada correctamente");
-      // En un caso real, redireccionaríamos a la página de préstamos
-      window.alert("Solicitud enviada correctamente. Serás redirigido a la página de préstamos.");
-      // Como no podemos usar navigate, podríamos usar window.location.href = "/loans";
-    } catch (error) {
+      // En un caso real, redireccionaríamos a la página de préstamos después de un período corto
+      setTimeout(() => {
+        window.location.href = "/loans";
+      }, 2000);
+      
+    } catch (error: any) {
       console.error("Error al enviar solicitud:", error);
-      console.error("No se pudo procesar tu solicitud. Intenta nuevamente.");
+      setIsSubmitSuccessful(false);
+      setOptimisticLoan(null);
+      
+      // Manejar mensajes de error del servidor
+      if (error.response?.data?.message) {
+        setError(error.response.data.message);
+      } else {
+        setError("No se pudo procesar tu solicitud. Intenta nuevamente.");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Si está cargando, mostrar indicador
+  // Si hay un error de carga
+  if (error && !isSubmitSuccessful) {
+    return (
+      <PageContainer>
+        <ContentContainer>
+          <PageHeader 
+            title="Solicitud de crédito" 
+            onBack={onLogout} 
+          />
+          <div className="flex flex-col items-center justify-center p-6 text-center">
+            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Ocurrió un error</h3>
+            <p className="text-muted-foreground mb-6">{error}</p>
+            <Button onClick={() => window.location.reload()}>
+              Intentar nuevamente
+            </Button>
+          </div>
+        </ContentContainer>
+      </PageContainer>
+    );
+  }
+
+  // Si se envió exitosamente la solicitud (optimistic UI)
+  if (isSubmitSuccessful && optimisticLoan) {
+    return (
+      <PageContainer>
+        <ContentContainer>
+          <PageHeader 
+            title="Solicitud enviada" 
+            onBack={onLogout} 
+          />
+          <div className="flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <CheckIcon className="h-8 w-8 text-primary" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">¡Préstamo solicitado con éxito!</h3>
+            <p className="text-muted-foreground mb-6">
+              Tu solicitud está siendo procesada. Serás redirigido automáticamente.
+            </p>
+            
+            <Card className="w-full mb-6">
+              <CardContent className="p-4">
+                <h4 className="font-medium mb-3">Detalles del préstamo</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Producto</span>
+                    <span>{optimisticLoan.productName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Monto</span>
+                    <span>${optimisticLoan.principal.toLocaleString('es-MX')}.00</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">A recibir</span>
+                    <span>${optimisticLoan.disbursedAmount.toLocaleString('es-MX')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Plazo</span>
+                    <span>{optimisticLoan.term} {optimisticLoan.term === 1 ? 'semana' : 'semanas'}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <p className="text-xs text-muted-foreground mt-2">Redirigiendo a préstamos...</p>
+          </div>
+        </ContentContainer>
+      </PageContainer>
+    );
+  }
+
+  // Si está cargando, mostrar skeleton loader
   if (loading) {
     return (
       <PageContainer>
         <ContentContainer>
-          <div className="flex flex-col items-center justify-center min-h-[60vh]">
-            <Loader2 className="h-10 w-10 text-primary animate-spin" />
-            <p className="mt-4 text-muted-foreground">Cargando productos disponibles...</p>
-          </div>
+          <PageHeader 
+            title="Solicitud de crédito" 
+            onBack={onLogout} 
+          />
+          <SkeletonLoader />
         </ContentContainer>
       </PageContainer>
     );
@@ -181,6 +376,13 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
           title="Solicitud de crédito" 
           onBack={onLogout} 
         />
+        
+        {error && (
+          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg mb-4 flex items-start">
+            <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
         
         <SectionContainer>
           <SectionHeader
