@@ -17,7 +17,7 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
         - **Cuerpo**: Array de objetos con los siguientes campos:
             - `id` (string): ID único del producto de préstamo.
             - `name` (string): Nombre del producto.
-            - `productType` (string): Tipo de producto, ej. 'simple', 'revolvente'.
+            - `productType` (string): Tipo de producto, ej. 'simple', 'revolvente', 'back_to_back', 'express'.
             - `ratePeriodicity` (string): Periodicidad de la tasa de interés.
             - `rateDefinitionPeriodicity` (string): Periodicidad de definición de la tasa.
             - `minRate` (number): Tasa mínima de interés.
@@ -26,6 +26,8 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
             - `lateFeeRate` (number): Tasa de recargo por atraso.
             - `minAmount` (number): Monto mínimo que se puede solicitar.
             - `maxAmount` (number): Monto máximo que se puede solicitar.
+            - `fixedTerm` (number, opcional): Número fijo de períodos para productos con plazo predefinido.
+            - `isExpressProduct` (boolean): Indica si es un producto de tipo express con plazo fijo.
             - `createdAt` (string): Fecha de creación del producto en formato ISO 8601.
     - `500 Internal Server Error`: Error inesperado en el servidor.
         - **Cuerpo**: `ErrorResponseSchema`.
@@ -36,8 +38,8 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
 - **Descripción General**: Permite a un administrador crear un nuevo producto de préstamo. Requiere autenticación y rol de administrador.
 - **Autenticación**: Requerida (Token Bearer) + Rol de Administrador.
 - **Tags**: `Loans`, `Admin`
-- **Cuerpo de la Solicitud (`application/json`)**: 
-    - *Ejemplo*:
+- **Cuerpo de la Solicitud (`application/json`)**:
+    - *Ejemplo (Préstamo Personal Estándar)*:
       ```json
       {
         "name": "Préstamo Personal",
@@ -50,6 +52,22 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
         "lateFeeRate": 0.01,
         "minAmount": 1000,
         "maxAmount": 50000
+      }
+      ```
+    - *Ejemplo (Crédito Express con Plazo Fijo)*:
+      ```json
+      {
+        "name": "Crédito Express 2 Semanas",
+        "productType": "express",
+        "ratePeriodicity": "WEEKLY",
+        "rateDefinitionPeriodicity": "WEEKLY",
+        "minRate": 0.0145,
+        "maxRate": 0.023,
+        "commissionRate": 0.02,
+        "lateFeeRate": 0.05,
+        "minAmount": 500,
+        "maxAmount": 7000,
+        "fixedTerm": 2
       }
       ```
 - **Respuestas**:
@@ -91,20 +109,76 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
     - `500 Internal Server Error`: Error inesperado en el servidor.
         - **Cuerpo**: `ErrorResponseSchema`.
 
-### 4. Solicitar un Nuevo Préstamo
+### 4. Obtener Lista de Préstamos del Usuario
+- **Método**: `GET`
+- **URL**: `/loans` (o `/api/loans` con prefijo global)
+- **Descripción General**: Permite a un usuario autenticado obtener todos sus préstamos, tanto activos como inactivos. Este endpoint requiere que el usuario tenga un límite de crédito disponible (mayor a 0).
+- **Autenticación**: Requerida (Token Bearer). Utiliza un hook `requireAuth` pasado en las opciones del plugin.
+- **Tags**: `Loans`
+- **Respuestas**:
+    - `200 OK`: Lista de préstamos recuperada con éxito.
+        - **Cuerpo**: Array de objetos con los siguientes campos:
+            - `id` (string): ID único del préstamo.
+            - `borrowerId` (string): ID del perfil del prestatario.
+            - `accountId` (string): ID de la cuenta asociada al préstamo.
+            - `productId` (string): ID del producto de préstamo.
+            - `productType` (string, puede ser null): Tipo de producto (simple, revolvente, express, etc.).
+            - `productName` (string, puede ser null): Nombre del producto asociado.
+            - `principal` (number): Monto principal del préstamo.
+            - `term` (integer): Plazo del préstamo en número de periodos.
+            - `rateApplied` (number): Tasa de interés aplicada.
+            - `ratePeriodicity` (string): Periodicidad de la tasa.
+            - `commissionAmount` (number, puede ser null): Monto de la comisión.
+            - `status` (string): Estado actual del préstamo (ej. ACTIVE, PAID_OFF).
+            - `startDate` (string, puede ser null): Fecha de inicio del préstamo en formato ISO 8601.
+            - `expectedEndDate` (string, puede ser null): Fecha esperada de finalización en formato ISO 8601.
+            - `createdAt` (string): Fecha de creación del préstamo en formato ISO 8601.
+            - `isExpressProduct` (boolean): Indica si es un producto de tipo express.
+            - `fixedTerm` (number, puede ser null): Número de períodos fijos si es un producto express.
+    - `401 Unauthorized`: Autenticación requerida o fallida.
+        - **Cuerpo**: `ErrorResponseSchema`.
+    - `403 Forbidden`: El usuario no tiene un límite de crédito disponible.
+        - **Cuerpo**: `ErrorResponseSchema`.
+        - *Ejemplo de Mensaje*: `"You do not have a credit limit available to view loans"` (con `reason: 'NO_CREDIT_LIMIT'`).
+    - `404 Not Found`: Perfil de usuario no encontrado.
+        - **Cuerpo**: `ErrorResponseSchema`.
+    - `500 Internal Server Error`: Error inesperado en el servidor.
+        - **Cuerpo**: `ErrorResponseSchema`.
+- **Lógica Principal**:
+    1. **Autenticación**: El hook `requireAuth` se ejecuta primero para asegurar que el usuario esté autenticado.
+    2. Obtiene el `userId` del token JWT (`request.user.sub`).
+    3. Busca el `profileId` del usuario en la tabla `profiles` usando el `userId`.
+    4. Si el perfil no existe, responde con error 404.
+    5. Verifica si el usuario tiene un límite de crédito disponible usando `loanService.getAvailableCredit(profileId)`.
+    6. Si el límite de crédito es <= 0, responde con error 403 (`NO_CREDIT_LIMIT`).
+    7. Obtiene todos los préstamos del usuario llamando a `loanService.findByBorrowerId(profileId)`.
+    8. Formatea los datos de los préstamos para la respuesta, convirtiendo objetos Money a números.
+    9. Responde con código 200 y la lista formateada de préstamos.
+
+### 5. Solicitar un Nuevo Préstamo
 - **Método**: `POST`
 - **URL**: `/loans` (o `/api/loans` con prefijo global)
-- **Descripción General**: Permite a un usuario autenticado y con perfil existente solicitar un nuevo préstamo. El usuario debe especificar un producto de préstamo, el monto principal deseado, y alternativamente el plazo del préstamo o el monto del pago periódico. El servicio valida la solicitud, la disponibilidad de crédito del usuario y, si todo es correcto, crea el registro del préstamo.
+- **Descripción General**: Permite a un usuario autenticado y con perfil existente solicitar un nuevo préstamo. El usuario debe especificar un producto de préstamo, el monto principal deseado, y alternativamente el plazo del préstamo o el monto del pago periódico. Para productos de tipo "express", el plazo será determinado automáticamente por el campo `fixedTerm` del producto y no se permite especificar `paymentAmount`.
 - **Autenticación**: Requerida (Token Bearer). Utiliza un hook `requireAuth` pasado en las opciones del plugin.
 - **Tags**: `Loans`
 - **Cuerpo de la Solicitud (`application/json`)**: `CreateLoanRequestBodySchema` (ver Schemas Comunes)
-    - *Ejemplo*:
+    - *Ejemplo para préstamo normal*:
       ```json
       {
         "productId": "prod_12345",
-        "principal": 10000.00, 
+        "principal": 10000.00,
         "term": 12, // Plazo en 12 periodos (ej. semanas/meses según producto)
         // "paymentAmount": 900.00, // Alternativamente, se podría proveer paymentAmount en lugar de term
+        "startDate": "2024-08-01T00:00:00Z" // Opcional
+      }
+      ```
+    - *Ejemplo para préstamo express (con plazo fijo)*:
+      ```json
+      {
+        "productId": "prod_express_1",
+        "principal": 5000.00,
+        // No se permite especificar paymentAmount para productos express
+        // El term debe coincidir con el fixedTerm del producto o puede omitirse
         "startDate": "2024-08-01T00:00:00Z" // Opcional
       }
       ```
@@ -115,6 +189,8 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
         - **Cuerpo**: `ErrorResponseSchema` (ver Schemas Comunes).
         - *Ejemplos de Mensajes*:
             - `"Must provide either term or paymentAmount, but not both."`
+            - `"Para productos express con plazo fijo, el término debe ser exactamente X periodos."`
+            - `"Para productos express con plazo fijo, no se permite especificar el monto de pago (paymentAmount)."`
             - Mensajes de error de validación de campos (ej. `principal` debe ser mayor a 0).
             - `"Error de validación"` (genérico si `error.code === 'VALIDATION_ERROR'`).
     - `401 Unauthorized`: Autenticación requerida o fallida.
@@ -147,7 +223,7 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
     11. Mapea la entidad `Loan` devuelta por el servicio a la estructura de `LoanResponseSchema`, convirtiendo valores monetarios de `Money` objects (unidades menores) a números de unidad mayor para la respuesta (ej. `principal.toMajorUnitNumber()`).
     12. Responde con el código 201 y los detalles del préstamo creado.
 
-### 5. Obtener Detalles de un Préstamo
+### 6. Obtener Detalles de un Préstamo
 - **Método**: `GET`
 - **URL**: `/loans/:id` (o `/api/loans/:id` con prefijo global)
 - **Descripción General**: Obtiene los detalles completos de un préstamo específico.
@@ -167,7 +243,7 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
     - `500 Internal Server Error`: Error inesperado en el servidor.
         - **Cuerpo**: `ErrorResponseSchema`.
 
-### 6. Obtener Tabla de Amortización
+### 7. Obtener Tabla de Amortización
 - **Método**: `GET`
 - **URL**: `/loans/:id/schedule` (o `/api/loans/:id/schedule` con prefijo global)
 - **Descripción General**: Obtiene la tabla de amortización completa de un préstamo específico.
@@ -187,7 +263,7 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
     - `500 Internal Server Error`: Error inesperado en el servidor.
         - **Cuerpo**: `ErrorResponseSchema`.
 
-### 7. Registrar Pago
+### 8. Registrar Pago
 - **Método**: `POST`
 - **URL**: `/loans/:id/payments` (o `/api/loans/:id/payments` con prefijo global)
 - **Descripción General**: Registra un pago para un préstamo específico. Puede usarse como webhook para STP.
@@ -221,7 +297,7 @@ Este documento detalla cada uno de los endpoints gestionados por el servicio de 
     - `500 Internal Server Error`: Error inesperado en el servidor.
         - **Cuerpo**: `ErrorResponseSchema`.
 
-### 8. Obtener Cargos de un Préstamo
+### 9. Obtener Cargos de un Préstamo
 - **Método**: `GET`
 - **URL**: `/loans/:id/charges` (o `/api/loans/:id/charges` con prefijo global)
 - **Descripción General**: Obtiene todos los cargos (comisiones, recargos, etc.) asociados a un préstamo.

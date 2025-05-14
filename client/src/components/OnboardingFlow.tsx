@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useEffect } from "react";
 import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -16,10 +16,12 @@ import ProcessingOverlay from "./ProcessingOverlay";
 import apiClient from '../lib/api/axios';
 import { login } from '../lib/api/authService';
 import { fetchOnboardingStatus } from '../lib/api/onboardingService';
+import { useLocation } from 'wouter';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
   onCancel: () => void;
+  initialStep?: string;
 }
 
 export interface OnboardingData {
@@ -47,12 +49,37 @@ export interface OnboardingData {
 
 type StepKey = "account" | "phone" | "otp" | "name" | "ine" | "review" | "bureauConsent" | "done";
 
+// Mapeo entre las rutas URL y las claves de pasos internas
+const urlToStepMap: Record<string, StepKey> = {
+  "account": "account",
+  "phone": "phone",
+  "otp": "otp",
+  "personal": "name",
+  "ine": "ine",
+  "review": "review",
+  "bureau": "bureauConsent",
+  "complete": "done"
+};
+
+// Mapeo inverso para convertir claves de pasos a rutas URL
+const stepToUrlMap: Record<StepKey, string> = {
+  "account": "account",
+  "phone": "phone",
+  "otp": "otp",
+  "name": "personal",
+  "ine": "ine",
+  "review": "review",
+  "bureauConsent": "bureau",
+  "done": "complete"
+};
+
 interface StepConfig {
   title: string;
   subtitle: string;
 }
 
-export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowProps) {
+export default function OnboardingFlow({ onComplete, onCancel, initialStep }: OnboardingFlowProps) {
+  const [location, navigate] = useLocation();
   const [currentStep, setCurrentStep] = useState<StepKey>("account");
   const [userData, setUserData] = useState<OnboardingData>({
     email: "",
@@ -92,6 +119,19 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
     verifyOtpMutation.isPending ||
     uploadIneMutation.isPending ||
     updateProfileMutation.isPending;
+
+  // Inicializar el paso desde la URL
+  useEffect(() => {
+    if (initialStep && urlToStepMap[initialStep]) {
+      setCurrentStep(urlToStepMap[initialStep]);
+    }
+  }, [initialStep]);
+
+  // Actualizar la URL cuando cambia el paso
+  useEffect(() => {
+    const urlStep = stepToUrlMap[currentStep];
+    navigate(`/register/${urlStep}`, { replace: true });
+  }, [currentStep, navigate]);
 
   const steps: Record<StepKey, StepConfig> = {
     "account": {
@@ -355,7 +395,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
       );
     }
     return (
-      <form onSubmit={(e) => { e.preventDefault(); goToNextStep(); }} className="space-y-4">
+      <form onSubmit={(e) => { e.preventDefault(); goToNextStep(); }} className="space-y-4" autoComplete="on">
         {apiError && (
           <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4 text-center">
             {apiError}
@@ -455,6 +495,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       onChange={(e) => handleChange("firstName", e.target.value)}
                       placeholder="Ej. Juan"
                       className={errors.firstName ? "border-destructive" : ""}
+                      autoComplete="given-name"
                     />
                     {errors.firstName && <p className="text-destructive text-sm mt-1">{errors.firstName}</p>}
                   </div>
@@ -466,6 +507,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       onChange={(e) => handleChange("middleName", e.target.value)}
                       placeholder="Ej. Carlos"
                       className={errors.middleName ? "border-destructive" : ""}
+                      autoComplete="additional-name"
                     />
                     {errors.middleName && <p className="text-destructive text-sm mt-1">{errors.middleName}</p>}
                   </div>
@@ -477,6 +519,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       onChange={(e) => handleChange("lastName", e.target.value)}
                       placeholder="Ej. Pérez"
                       className={errors.lastName ? "border-destructive" : ""}
+                      autoComplete="family-name"
                     />
                     {errors.lastName && <p className="text-destructive text-sm mt-1">{errors.lastName}</p>}
                   </div>
@@ -488,6 +531,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       onChange={(e) => handleChange("motherLastName", e.target.value)}
                       placeholder="Ej. García"
                       className={errors.motherLastName ? "border-destructive" : ""}
+                      autoComplete="family-name"
                     />
                     {errors.motherLastName && <p className="text-destructive text-sm mt-1">{errors.motherLastName}</p>}
                   </div>
@@ -499,6 +543,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       value={userData.birthDate}
                       onChange={(e) => handleChange("birthDate", e.target.value)}
                       className={errors.birthDate ? "border-destructive" : ""}
+                      autoComplete="bday"
                     />
                     {errors.birthDate && <p className="text-destructive text-sm mt-1">{errors.birthDate}</p>}
                   </div>
@@ -509,6 +554,7 @@ export default function OnboardingFlow({ onComplete, onCancel }: OnboardingFlowP
                       value={userData.sex}
                       onChange={(e) => handleChange("sex", e.target.value)}
                       className={`w-full rounded border px-3 py-2 ${errors.sex ? "border-destructive" : "border-input"}`}
+                      autoComplete="sex"
                     >
                       <option value="">Selecciona</option>
                       <option value="H">Hombre</option>

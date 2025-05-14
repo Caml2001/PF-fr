@@ -26,7 +26,7 @@ interface AuthFormProps {
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
-  const [location, setLocation] = useLocation(); 
+  const [location, navigate] = useLocation(); 
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
@@ -51,9 +51,16 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
     });
   };
 
-  const handleRegisterClick = () => {
+  // Función simplificada para mostrar la pantalla de info
+  const handleShowSignupInfo = () => {
     setActiveTab("signup");
-    onStartSignup(); 
+  };
+
+  // Función que ejecuta la navegación directamente a la ruta /register/account
+  const handleNavigateToRegister = () => {
+    console.log("AuthForm: Navegando directamente a /register/account");
+    // Forzar la navegación directa
+    window.location.href = '/register/account';
   };
 
   return (
@@ -96,6 +103,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
                         placeholder="ejemplo@correo.com"
                         {...register("email")}
                         className={`rounded-xl py-6 text-base ${errors.email ? "border-destructive" : ""}`}
+                        autoComplete="email"
                       />
                       {errors.email && <p className="text-destructive text-sm mt-2">{errors.email.message}</p>}
                     </SectionContainer>
@@ -110,6 +118,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
                         placeholder="Tu contraseña"
                         {...register("password")}
                         className={`rounded-xl py-6 text-base ${errors.password ? "border-destructive" : ""}`}
+                        autoComplete="current-password"
                       />
                       {errors.password && <p className="text-destructive text-sm mt-2">{errors.password.message}</p>}
                     </SectionContainer>
@@ -128,7 +137,8 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
                         <Button 
                           variant="link" 
                           className="p-0 h-auto text-primary text-base"
-                          onClick={handleRegisterClick}
+                          onClick={handleShowSignupInfo}
+                          type="button"
                         >
                           Crear cuenta
                         </Button>
@@ -166,7 +176,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
                   
                   <Button 
                     className="w-full py-6 text-base rounded-xl"
-                    onClick={onStartSignup}
+                    onClick={handleNavigateToRegister}
                     type="button"
                   >
                     Comenzar registro

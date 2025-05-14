@@ -9,6 +9,24 @@ export interface CreditInfo {
   currency: string;
 }
 
+// Interfaz para los productos de préstamo
+export interface LoanProduct {
+  id: string;
+  name: string;
+  productType: string;
+  ratePeriodicity: string;
+  rateDefinitionPeriodicity: string;
+  minRate: number;
+  maxRate: number;
+  commissionRate: number;
+  lateFeeRate: number;
+  minAmount: number;
+  maxAmount: number;
+  createdAt: string;
+  isExpressProduct: boolean;
+  fixedTerm?: number;
+}
+
 export const applyForCredit = async (applicationData: any) => {
   // const response = await apiClient.post('/credit/apply', applicationData);
   // return response.data;
@@ -37,5 +55,16 @@ export const getCreditInfo = async (): Promise<CreditInfo> => {
       available: 0,
       currency: 'MXN'
     };
+  }
+};
+
+// Obtener los productos de préstamo disponibles
+export const getLoanProducts = async (): Promise<LoanProduct[]> => {
+  try {
+    const response = await apiClient.get('api/loan-products');
+    return response.data;
+  } catch (error) {
+    console.error('Error al obtener productos de préstamo:', error);
+    return [];
   }
 };
