@@ -17,6 +17,7 @@ export interface CompleteOnboardingResponse {
     folioConsulta: string;
     fechaConsulta: string;
   };
+  statusInfo?: string;
 }
 
 export async function fetchOnboardingStatus(): Promise<OnboardingStatusResponse> {
