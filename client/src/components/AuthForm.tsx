@@ -10,6 +10,7 @@ import { useLocation } from 'wouter';
 import { useLogin } from '../hooks/useLogin';
 import { Card, CardContent } from "./ui/card";
 import { PageContainer, ContentContainer, SectionContainer } from "./Layout";
+import { fetchOnboardingStatus } from '../lib/api/onboardingService';
 
 // Zod schema for validation
 const LoginSchema = z.object({
@@ -37,12 +38,41 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
 
   const handleLoginSubmit: SubmitHandler<LoginFormData> = async (data) => {
     loginMutation.mutate(data, {
-      onSuccess: (response) => {
-        const token = response?.session?.access_token;
+      onSuccess: async (response) => {
+        const token = response?.accessToken;
         if (token) {
-          onLogin(token);
+          try {
+            // Verificar el estado de onboarding después del login
+            const statusResponse = await fetchOnboardingStatus();
+            console.log('Estado de onboarding después del login:', statusResponse);
+            
+            if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' || 
+                statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED') {
+              // Usuario ya completó onboarding, ir al dashboard
+              console.log('Onboarding completo, navegando a /home');
+              onLogin(token);
+            } else {
+              // Usuario necesita completar onboarding, navegar al paso correspondiente
+              const statusToUrlMap: Record<string, string> = {
+                'PHONE_PENDING': '/register/phone',
+                'OTP_PENDING': '/register/otp',
+                'REGISTERED_BASIC': '/register/personal',
+                'PROFILE_PENDING': '/register/ine',
+                'INE_PENDING': '/register/review',
+                'INE_REVIEW': '/account/review'
+              };
+              
+              const targetUrl = statusToUrlMap[statusResponse.status] || '/register/personal';
+              console.log('Navegando a:', targetUrl, 'basado en estado:', statusResponse.status);
+              window.location.href = targetUrl;
+            }
+          } catch (error) {
+            console.error('Error verificando estado de onboarding:', error);
+            // Si hay error, usar el comportamiento por defecto
+            onLogin(token);
+          }
         } else {
-          console.error('No se recibió token en el login');
+          console.error('Login exitoso pero no se recibió accessToken en la respuesta.');
         }
       },
       onError: (error) => {

@@ -5,11 +5,11 @@ export const useLogin = () => {
   return useMutation<AuthResponse, Error, AuthCredentials>({
     mutationFn: login, 
     onSuccess: (data) => {
-      if (data?.session?.access_token) {
-        localStorage.setItem('authToken', data.session.access_token);
+      if (data?.accessToken) {
+        localStorage.setItem('authToken', data.accessToken);
         console.log('Auth token stored in localStorage (login).');
       } else {
-        console.warn('No token received upon login or session object missing.');
+        console.warn('No accessToken received upon login.');
       }
     },
     // Optional: Add onError, onSettled callbacks here

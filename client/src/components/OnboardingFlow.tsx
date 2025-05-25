@@ -3,13 +3,15 @@ import { Card, CardContent } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
-import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Camera, Upload, FileText, Loader2 } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, CheckIcon, Camera, Upload, Loader2 } from "lucide-react";
 import { useRegister } from '../hooks/useRegister';
 import { useSubmitPhone } from '../hooks/useSubmitPhone';
 import { useVerifyOtp } from '../hooks/useVerifyOtp';
 import { useUploadIne } from '../hooks/useUploadIne';
 import { useUpdateProfile } from '../hooks/useUpdateProfile';
+import { useSubmitPersonalData } from '../hooks/useSubmitPersonalData';
 import { type SignupData } from '../lib/api/authService';
+import { type ProfileUploadResponse, type ProfileData } from '../lib/api/profileService';
 import ProfileReview from '../components/ProfileReview';
 import CreditBureauConsent from './CreditBureauConsent';
 import ProcessingOverlay from "./ProcessingOverlay";
@@ -17,6 +19,7 @@ import apiClient from '../lib/api/axios';
 import { login } from '../lib/api/authService';
 import { fetchOnboardingStatus, completeOnboarding } from '../lib/api/onboardingService';
 import { useLocation } from 'wouter';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -107,21 +110,24 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
   });
   const [errors, setErrors] = useState<Partial<Record<keyof OnboardingData, string>>>({});
   const [apiError, setApiError] = useState<string | null>(null);
-  const [reviewProfile, setReviewProfile] = useState<any | null>(null);
-  const [isIneReviewPending, setIsIneReviewPending] = useState(false);
+  const [reviewProfile, setReviewProfile] = useState<ProfileData | null>(null);
+
+  const queryClient = useQueryClient();
 
   const registerMutation = useRegister();
   const submitPhoneMutation = useSubmitPhone();
   const verifyOtpMutation = useVerifyOtp();
   const uploadIneMutation = useUploadIne();
   const updateProfileMutation = useUpdateProfile();
+  const submitPersonalDataMutation = useSubmitPersonalData();
 
   const isLoading = 
     registerMutation.isPending ||
     submitPhoneMutation.isPending ||
     verifyOtpMutation.isPending ||
     uploadIneMutation.isPending ||
-    updateProfileMutation.isPending;
+    updateProfileMutation.isPending ||
+    submitPersonalDataMutation.isPending;
 
   // Estado de carga específico para la llamada a completeOnboarding si se hace directamente
   const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
@@ -132,19 +138,8 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
   useEffect(() => {
     if (initialStep && urlToStepMap[initialStep]) {
       setCurrentStep(urlToStepMap[initialStep]);
-      if (urlToStepMap[initialStep] !== "bureauConsent") {
-        setIsIneReviewPending(false);
-      }
     }
   }, [initialStep]);
-
-  // Efecto para limpiar isIneReviewPending si el paso actual general cambia
-  // y ya no es bureauConsent, o si el onboardingStatus general del servidor cambia.
-  useEffect(() => {
-    if (currentStep !== "bureauConsent") {
-      setIsIneReviewPending(false);
-    }
-  }, [currentStep]);
 
   // Actualizar la URL cuando cambia el paso
   useEffect(() => {
@@ -204,8 +199,6 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
   };
 
   const validateCurrentStep = (): boolean => {
-    if (isIneReviewPending && currentStep === "bureauConsent") return true;
-
     const newErrors: Partial<Record<keyof OnboardingData, string>> = {};
     let isValid = true;
 
@@ -275,15 +268,73 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
     }
     setApiError(null);
 
-    if (isIneReviewPending && currentStep === "bureauConsent") {
-      return;
-    }
-
     try {
       switch (currentStep) {
         case "account":
-          await registerMutation.mutateAsync({ email: userData.email, password: userData.password });
-          moveToNext();
+          try {
+            await registerMutation.mutateAsync({ email: userData.email, password: userData.password });
+            moveToNext();
+          } catch (error: any) {
+            // Debug: Log del error completo
+            console.log('Error en signup:', {
+              status: error?.response?.status,
+              data: error?.response?.data,
+              message: error?.message
+            });
+            
+            // Si el usuario ya existe, intentar hacer signin
+            if (error?.message === "User already registered") {
+              try {
+                console.log('Usuario ya existe, intentando login automático...');
+                const loginResponse = await login({ email: userData.email, password: userData.password });
+                
+                console.log('Login automático exitoso:', loginResponse);
+                
+                if (loginResponse.accessToken) {
+                  // Verificar el estado de onboarding
+                  const statusResponse = await fetchOnboardingStatus();
+                  console.log('Estado de onboarding:', statusResponse);
+                  
+                  if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' || 
+                      statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED') {
+                    // Usuario ya completó onboarding, ir al dashboard
+                    console.log('Onboarding completo, navegando a /home');
+                    window.location.href = '/home';
+                    return;
+                  } else {
+                    // Caso especial: INE en revisión va a pantalla dedicada
+                    if (statusResponse.status === 'INE_REVIEW') {
+                      console.log('INE en revisión, navegando a /account/review');
+                      window.location.href = '/account/review';
+                      return;
+                    }
+                    
+                    // Usuario necesita completar onboarding, determinar paso
+                    const statusToStepMap: Record<string, StepKey> = {
+                      'PHONE_PENDING': 'phone',
+                      'OTP_PENDING': 'otp',
+                      'REGISTERED_BASIC': 'name',
+                      'PROFILE_PENDING': 'ine',
+                      'INE_PENDING': 'review'
+                    };
+                    
+                    const targetStep = statusToStepMap[statusResponse.status] || 'name';
+                    console.log('Navegando al paso:', targetStep, 'basado en estado:', statusResponse.status);
+                    setCurrentStep(targetStep);
+                  }
+                } else {
+                  console.log('Login exitoso pero sin accessToken');
+                }
+              } catch (loginError) {
+                // Si el login falla, mostrar error original de signup
+                console.log('Error en login automático:', loginError);
+                throw error;
+              }
+            } else {
+              // Cualquier otro error de signup
+              throw error;
+            }
+          }
           break;
         case "phone":
           await submitPhoneMutation.mutateAsync(userData.phoneNumber);
@@ -294,11 +345,13 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
           moveToNext();
           break;
         case "name":
-          await updateProfileMutation.mutateAsync({ 
-            firstName: userData.firstName, 
-            middleName: userData.middleName,
-            lastName: userData.lastName, 
+          await submitPersonalDataMutation.mutateAsync({
+            firstName: userData.firstName,
+            middleName: userData.middleName || undefined,
+            lastName: userData.lastName,
             motherLastName: userData.motherLastName,
+            birthDate: userData.birthDate,
+            sex: userData.sex,
           });
           moveToNext();
           break;
@@ -307,14 +360,22 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
             setApiError("Ambos lados de la INE son requeridos.");
             return;
           }
-          await uploadIneMutation.mutateAsync({ ineFrontFile: userData.ineFrontFile, ineBackFile: userData.ineBackFile });
+          const ineResponse: ProfileUploadResponse = await uploadIneMutation.mutateAsync({ 
+            ineFrontFile: userData.ineFrontFile, 
+            ineBackFile: userData.ineBackFile 
+          });
+          
+          if (ineResponse && ineResponse.profile) {
+            queryClient.setQueryData(['profile'], ineResponse.profile);
+            console.log('Perfil actualizado en React Query cache después de subir INE.');
+            setReviewProfile(ineResponse.profile);
+            console.log('Estado local reviewProfile actualizado.');
+          } else {
+            console.warn('No se recibió el perfil en la respuesta de la subida de INE.');
+          }
           moveToNext();
           break;
         case "review":
-          await updateProfileMutation.mutateAsync({
-            curp: userData.curp,
-            street: userData.street,
-          });
           moveToNext();
           break;
         case "bureauConsent":
@@ -325,11 +386,21 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
           setIsCompletingOnboarding(true);
           try {
             const response = await completeOnboarding(userData.bureauConsent);
-            if (response.statusInfo === 'INE_PENDING_MANUAL_REVIEW') {
-              setIsIneReviewPending(true);
+            
+            // Si la respuesta contiene un token, actualizamos el estado de autenticación
+            if (response.token) {
+              console.log('Token de acceso final actualizado');
+              // El token ya se guarda en completeOnboarding, no necesitamos hacerlo aquí
+            }
+            
+            if (response.statusInfo === 'INE_REVIEW') {
+              // INE en revisión, navegar a pantalla dedicada
+              window.location.href = '/account/review';
+              return;
             } else {
-              setIsIneReviewPending(false);
-              onComplete();
+              // Caso normal, navegar al dashboard
+              window.location.href = '/home';
+              return;
             }
           } catch (error) {
             handleError(error, "Error al procesar tu consentimiento.");
@@ -351,7 +422,6 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
 
   const goToPreviousStep = () => {
     if (currentStepIndex > 0) {
-      setIsIneReviewPending(false);
       setCurrentStep(stepOrder[currentStepIndex - 1]);
     } else {
       onCancel();
@@ -359,24 +429,6 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
   };
 
   const renderStepContent = () => {
-    if (isIneReviewPending && currentStep === "bureauConsent") {
-      return (
-        <div className="space-y-6 text-center p-4">
-          <FileText size={56} className="mx-auto text-blue-500" />
-          <h3 className="text-2xl font-semibold text-gray-800">INE en Revisión Manual</h3>
-          <p className="text-gray-600 leading-relaxed">
-            Hemos registrado tu decisión sobre la consulta al buró de crédito.
-            Tu Identificación Oficial (INE) está actualmente en proceso de revisión manual por nuestro equipo.
-            Te notificaremos por correo electrónico una vez que este proceso haya concluido.
-            No necesitas realizar más acciones en este momento.
-          </p>
-          <Button onClick={onCancel} variant="outline" className="w-full sm:w-auto">
-            Salir del Proceso
-          </Button>
-        </div>
-      );
-    }
-
     if (currentStep === "review") {
       return (
         <ProfileReview

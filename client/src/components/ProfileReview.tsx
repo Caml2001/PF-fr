@@ -46,7 +46,9 @@ export default function ProfileReview({ profile, onComplete }: ProfileReviewProp
   const handleSave = () => {
     setApiError(null);
     updateProfileMutation.mutate(editData, {
-      onSuccess: () => {
+      onSuccess: (updatedData) => {
+        // Actualizar el estado local con los datos del servidor
+        setEditData(updatedData);
         setEditing(false);
         onComplete();
       },

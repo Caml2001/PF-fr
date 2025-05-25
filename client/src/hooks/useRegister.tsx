@@ -11,11 +11,10 @@ export const useRegister = (
     mutationFn: signup, 
     ...options,
     onSuccess: (data, variables, context) => {
-      if (data?.session?.access_token) { 
-        localStorage.setItem('authToken', data.session.access_token);
-        console.log('Auth token stored in localStorage.');
+      if (data?.accessToken) { 
+        console.log('Registration successful, token processed by authService.');
       } else {
-        console.warn('No token received upon registration or session object missing.');
+        console.warn('Token not available in response after registration, or signup failed upstream.');
       }
       
       options?.onSuccess?.(data, variables, context);

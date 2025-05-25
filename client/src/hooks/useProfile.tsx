@@ -11,14 +11,5 @@ export const useProfile = () => {
   });
 };
 
-export const useUpdateProfile = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: updateProfile,
-    onSuccess: () => {
-      // Invalidate the profile query to refetch fresh data
-      queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY });
-    },
-    // Add onError handling
-  });
-};
+// useUpdateProfile moved to dedicated file: hooks/useUpdateProfile.tsx
+// This avoids duplication and ensures consistent behavior
