@@ -1,25 +1,27 @@
 Primer paso:
 * Mail
 * Contraseña
-
+NO RECIBIMOS NUEVO TOKEN
 
 Petición a /onboarding/status <-- nuevo endpoint para consultar el paso actual
 
 Petición a /auth/signup
 OnboardingStatus: "PHONE_PENDING"
+NO RECIBIMOS NUEVO TOKEN
 
 Segundo paso:
 * Número de teléfono
 
 Petición a /profile/phone
 OnboardingStatus: "OTP_PENDING"
-
+NO RECIBIMOS NUEVO TOKEN
 
 Tercer paso:
 * OTP
 
 Petición a /profile/phone/verify
 OnboardingStatus: "REGISTERED_BASIC"
+SI RECIBIMOS NUEVO TOKEN
 
 Cuarto paso:
 * Primer Nombre
@@ -31,7 +33,7 @@ Cuarto paso:
 s
 Petición a /onboarding/temp
 OnboardingStatus: "PROFILE_PENDING"
-
+SI RECIBIMOS NUEVO TOKEN
 
 Quinto paso:
 * INE frontal
@@ -41,6 +43,7 @@ Petición a /profile/ine/verify
 OnboardingStatus: "INE_PENDING" (si los datos coinciden)
 OnboardingStatus: "INE_REVIEW" (si los datos no coinciden)
 OnboardingStatus: "INE_ERROR" (si falla)
+SI RECIBIMOS NUEVO TOKEN
 
 Sexto paso (confirmar):
 * CURP
@@ -52,5 +55,6 @@ Sexto paso (confirmar):
 * Codigo Postal
 * Consulta a buró (endpoint no existente)
 
-Petición a /onboarding/profile
-OnboardingStatus: "PROFILE_COMPLETED" (no existe actualmente, ignorarlo)
+Petición a /onboarding/complete
+OnboardingStatus: "PROFILE_COMPLETED"
+SI RECIBIMOS NUEVO TOKEN, Y CON ESTE YA SE LE DA ACCESO AL CLIENTE

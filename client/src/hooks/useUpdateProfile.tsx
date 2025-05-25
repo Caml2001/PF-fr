@@ -21,10 +21,17 @@ export const useUpdateProfile = () => {
 
   return useMutation<any, Error, ProfileData>({
     mutationFn: updateProfile,
-    onSuccess: () => {
-      // Invalidate and refetch the profile query after successful update
+    onSuccess: (updatedData) => {
+      console.log('Profile updated successfully:', updatedData);
+      
+      // Update the cache with the new data from the response
+      queryClient.setQueryData(['profile'], updatedData);
+      
+      // Also invalidate to ensure we have the latest server state
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
-    // Add onError handling if needed
+    onError: (error) => {
+      console.error('Error updating profile:', error);
+    }
   });
 };

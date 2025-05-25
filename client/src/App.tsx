@@ -6,6 +6,7 @@ import SettingsSection from "./sections/SettingsSection";
 import AuthForm from "./components/AuthForm";
 import OnboardingFlow from "./components/OnboardingFlow";
 import CreditApplicationForm from "./components/CreditApplicationForm";
+import IneReviewStatus from "./components/IneReviewStatus";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
 import { ContentContainer, PageContainer } from "./components/Layout";
 import { Router, Route, Switch, useLocation, useRoute, Redirect } from "wouter";
@@ -172,7 +173,7 @@ export default function App() {
       debug(`[ONBOARDING] Ubicación actual para redirección: ${currentLocation}`);
       
       // Definir rutas protegidas válidas
-      const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply'];
+      const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply', '/account'];
       const isProtectedRoute = validSecuredPaths.some(path => currentLocation.startsWith(path));
       // Usar isActuallyCompleted para la lógica de redirección
       const isOnboardingRoute = onboardingRoutes.some(route => currentLocation.startsWith(route));
@@ -195,10 +196,23 @@ export default function App() {
       // Si el usuario tiene onboarding incompleto
       else {
         localStorage.removeItem(ONBOARDING_STATUS_LOCALSTORAGE_KEY); // Asegurar que se quite si no está completo
+        
+        // Caso especial: INE en revisión va a pantalla dedicada
+        if (res.status === 'INE_REVIEW') {
+          if (currentLocation !== '/account/review') {
+            debug("[ONBOARDING] INE en revisión, redirigiendo a /account/review");
+            navigate('/account/review');
+          } else {
+            debug("[ONBOARDING] INE en revisión, manteniendo en /account/review");
+          }
+          return res.status;
+        }
+        
         // Solo redireccionar a onboarding si:
         // 1. No estamos ya en una ruta de onboarding
         // 2. No estamos en login (que tiene su propia lógica)
-        if (!isOnboardingRoute && currentLocation !== '/login') {
+        // 3. No estamos en la ruta de revisión de cuenta
+        if (!isOnboardingRoute && currentLocation !== '/login' && currentLocation !== '/account/review') {
           debug("[ONBOARDING] Onboarding incompleto (real), redirigiendo a register/account");
           navigate('/register/account');
         } else {
@@ -289,7 +303,7 @@ export default function App() {
           // debido a la suposición optimista, podríamos necesitar redirigir.
           
           const currentLocation = window.location.pathname;
-          const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply'];
+          const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply', '/account'];
           const isProtectedRoute = validSecuredPaths.some(path => currentLocation.startsWith(path));
           const completedStatuses = [
             'complete', 'completed', 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
@@ -301,7 +315,9 @@ export default function App() {
             // Estábamos optimistamente en una ruta protegida, pero el servidor dice que ya no.
             // Redirigir a onboarding o login según el serverStatus.
             debug(`[INIT] Discrepancia optimista! Optimista: completo, Real: ${serverStatus}. Redirigiendo.`);
-            if (serverStatus) { // Si hay un estado (incompleto)
+            if (serverStatus === 'INE_REVIEW') { // Caso especial: INE en revisión
+              navigate('/account/review');
+            } else if (serverStatus) { // Si hay un estado (incompleto)
               navigate('/register/account');
             } else { // Si serverStatus es null (error en fetch)
               navigate('/login');
@@ -315,6 +331,9 @@ export default function App() {
             if (isServerStatusComplete) {
               debug("[INIT] Onboarding completo (real), redirigiendo a home");
               navigate('/home');
+            } else if (serverStatus === 'INE_REVIEW') {
+              debug("[INIT] INE en revisión, redirigiendo a /account/review");
+              navigate('/account/review');
             } else {
               debug(`[INIT] Onboarding incompleto (real: ${serverStatus}), redirigiendo a register/account`);
               navigate('/register/account');
@@ -381,7 +400,7 @@ export default function App() {
     // 1. Cuando estamos en la raíz
     // 2. Cuando llegamos al login con un token (redirección automática)
     // 3. Solo para rutas no protegidas (para evitar redirecciones en rutas protegidas)
-    const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply'];
+    const validSecuredPaths = ['/home', '/loans', '/profile', '/settings', '/apply', '/account'];
     const isProtectedRoute = validSecuredPaths.some(path => location.startsWith(path));
     
     if ((location === '/' || location === '/login') && !isProtectedRoute) {
@@ -395,25 +414,20 @@ export default function App() {
     localStorage.setItem('authToken', userToken);
     setToken(userToken);
     
-    // No hay estado optimista aquí, se va a verificar.
-    setInitialLoadingOnboarding(true); // Mostrar carga mientras se verifica post-login.
-    localStorage.removeItem(ONBOARDING_STATUS_LOCALSTORAGE_KEY); // Limpiar cualquier estado optimista previo.
+    // La navegación inteligente ya se maneja en AuthForm.tsx
+    // Solo necesitamos actualizar el estado local sin redirecciones
+    setInitialLoadingOnboarding(true);
+    localStorage.removeItem(ONBOARDING_STATUS_LOCALSTORAGE_KEY);
 
     try {
-      debug("Verificando estado de onboarding después del login");
-      // La llamada a checkOnboardingStatus aquí ya actualiza localStorage y el estado de React.
-      // Y también maneja la redirección.
-      await checkOnboardingStatus(); 
-      // No es necesario hacer más aquí, checkOnboardingStatus se encarga.
-    } catch (error) { // El catch de checkOnboardingStatus ya maneja esto
+      debug("Actualizando estado de onboarding después del login (sin redirecciones)");
+      // Verificar estado sin redirecciones automáticas ya que AuthForm maneja la navegación
+      await checkOnboardingStatus({ preventRedirects: true }); 
+    } catch (error) {
       console.error("Error verificando estado de onboarding post-login:", error);
-      // Por si acaso, una redirección de fallback si checkOnboardingStatus falla catastróficamente antes de su propio catch.
-      // aunque checkOnboardingStatus debería manejar su propio error y redirección a login.
-      // localStorage.removeItem(ONBOARDING_STATUS_LOCALSTORAGE_KEY);
-      // setOnboardingStatus(null);
-      // navigate('/login'); 
+      setOnboardingStatus(null);
     } finally {
-        setInitialLoadingOnboarding(false); // Quitar carga post-login.
+        setInitialLoadingOnboarding(false);
     }
   };
 
@@ -528,9 +542,27 @@ export default function App() {
     'complete',
     'completed',
     'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
+    'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED',
     'DUMMY_BUREAU_CHECK_COMPLETED',
     'CREDIT_REPORT_AVAILABLE_DUMMY'
   ];
+
+  // Usuario con INE en revisión - caso especial
+  if (onboardingStatus === 'INE_REVIEW') {
+    return (
+      <Router>
+        <ScrollToTop />
+        <Switch>
+          <Route path="/account/review">
+            <IneReviewStatus onGoHome={() => navigate('/home')} />
+          </Route>
+          <Route>
+            {() => <Redirect to="/account/review" />}
+          </Route>
+        </Switch>
+      </Router>
+    );
+  }
 
   // Rutas para usuarios en proceso de onboarding
   if (!completedStatuses.includes(onboardingStatus || '')) {
@@ -595,6 +627,9 @@ export default function App() {
             </Route>
             <Route path="/apply">
               <CreditApplicationForm onLogout={handleLogout} />
+            </Route>
+            <Route path="/account/review">
+              <IneReviewStatus onGoHome={() => navigate('/home')} />
             </Route>
             <Route path="/">
               {() => {

@@ -18,18 +18,28 @@ export default function CreditBureauConsent({ onConsent, onCancel }: CreditBurea
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!isChecked) {
-      setError("Debes autorizar la consulta para continuar");
-      return;
-    }
-
     setIsLoading(true);
     setError("");
 
     try {
-      const response = await completeOnboarding(true);
-      onConsent(response.creditReport);
+      const response = await completeOnboarding(isChecked);
+      
+      if (response.success) {
+        // Si se autoriza el consentimiento, guardar token y navegar al dashboard
+        if (response.token) {
+          localStorage.setItem('authToken', response.token);
+        }
+        
+        // Si la INE está en revisión, ir a pantalla dedicada
+        if (response.statusInfo === 'INE_REVIEW') {
+          window.location.href = '/account/review';
+        } else {
+          // Caso normal, ir al dashboard
+          window.location.href = '/home';
+        }
+      } else {
+        setError(response.message || "No se pudo completar el proceso.");
+      }
     } catch (err: any) {
       console.error("Error al completar onboarding:", err);
       setError(err?.response?.data?.error || "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo.");
@@ -40,11 +50,22 @@ export default function CreditBureauConsent({ onConsent, onCancel }: CreditBurea
 
   const handleReject = async () => {
     setIsLoading(true);
+    setError("");
+
     try {
-      await completeOnboarding(false);
-      onCancel();
+      const response = await completeOnboarding(false);
+      
+      if (response.success) {
+        // Si se rechaza el consentimiento, navegar al dashboard
+        if (response.token) {
+          localStorage.setItem('authToken', response.token);
+        }
+        window.location.href = '/home';
+      } else {
+        setError(response.message || "No se pudo completar el proceso.");
+      }
     } catch (err: any) {
-      console.error("Error al rechazar consulta de buró:", err);
+      console.error("Error al rechazar la consulta:", err);
       setError(err?.response?.data?.error || "Ocurrió un error al procesar tu solicitud. Por favor intenta de nuevo.");
     } finally {
       setIsLoading(false);
@@ -121,16 +142,16 @@ export default function CreditBureauConsent({ onConsent, onCancel }: CreditBurea
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Cancelar
+                No autorizar
               </Button>
 
               <Button
                 type="submit"
                 className="flex-1 mobile-button h-12"
-                disabled={isLoading}
+                disabled={!isChecked || isLoading}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Continuar
+                Autorizar y Continuar
               </Button>
             </div>
           </form>

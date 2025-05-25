@@ -15,33 +15,41 @@ export interface SignupData extends AuthCredentials {
 interface User {
   id: string;
   email: string;
+  role?: string; // Added from new structure
+  onboardingStatus?: string; // Added from new structure
+  profileId?: string; // Added from new structure
   // Add other relevant user fields
 }
 
-// Define a more specific type for the Session object
-interface Session {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  expires_at: number;
-  refresh_token: string;
-  user: User; // Reuse the User interface
-}
+// Session interface is no longer directly part of AuthResponse in the same way,
+// but its fields are now at the root of AuthResponse or renamed.
+// interface Session {
+//   access_token: string;
+//   token_type: string;
+//   expires_in: number;
+//   expires_at: number;
+//   refresh_token: string;
+//   user: User; // Reuse the User interface
+// }
 
 export interface AuthResponse {
-  user: User; 
-  session: Session; // Use the specific Session interface
-  error?: string; 
+  user: User;
+  accessToken: string; // Changed from session.access_token
+  tokenType: string; // Changed from session.token_type (e.g., "Bearer")
+  expiresIn: number; // Changed from session.expires_in
+  expiresAt: number; // Changed from session.expires_at
+  supabaseRefreshToken: string; // Changed from session.refresh_token and renamed
+  error?: string;
 }
 
 export interface RefreshTokenResponse {
-  token: string;
+  token: string; // Assuming this response structure for refresh-token endpoint remains unchanged
 }
 
 // Función para guardar tokens en localStorage
 const saveTokens = (accessToken: string, refreshToken: string) => {
   localStorage.setItem('authToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
+  localStorage.setItem('refreshToken', refreshToken); // refreshToken is now supabaseRefreshToken from response
   // Update the Authorization header for future requests
   apiClient.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
 };
@@ -77,11 +85,11 @@ export const login = async (credentials: AuthCredentials): Promise<AuthResponse>
   try {
     const response = await apiClient.post<AuthResponse>('/auth/signin', credentials);
 
-    // Store the access token in localStorage
-    if (response.data.session?.access_token) {
+    // Store the access token and supabase refresh token in localStorage
+    if (response.data.accessToken && response.data.supabaseRefreshToken) {
       saveTokens(
-        response.data.session.access_token,
-        response.data.session.refresh_token
+        response.data.accessToken,
+        response.data.supabaseRefreshToken
       );
     }
 
@@ -99,14 +107,17 @@ export const signup = async (data: SignupData): Promise<AuthResponse> => {
     const payload = {
       email: data.email,
       password: data.password,
+      // Include other fields from SignupData if your API /auth/signup endpoint expects them
+      // For example, if SignupData included 'name':
+      // name: data.name, 
     };
     const response = await apiClient.post<AuthResponse>('/auth/signup', payload);
 
-    // Store the access token in localStorage
-    if (response.data.session?.access_token) {
+    // Store the access token and supabase refresh token in localStorage
+    if (response.data.accessToken && response.data.supabaseRefreshToken) {
       saveTokens(
-        response.data.session.access_token,
-        response.data.session.refresh_token
+        response.data.accessToken,
+        response.data.supabaseRefreshToken
       );
     }
 
@@ -119,7 +130,7 @@ export const signup = async (data: SignupData): Promise<AuthResponse> => {
 
 // Función para refrescar el token de acceso usando el refresh token
 export const refreshAccessToken = async (): Promise<string | null> => {
-  const refreshToken = getRefreshToken();
+  const refreshToken = getRefreshToken(); // This gets 'refreshToken' from localStorage
   
   if (!refreshToken) {
     console.error("No refresh token available");
@@ -135,8 +146,11 @@ export const refreshAccessToken = async (): Promise<string | null> => {
       }
     });
 
+    // IMPORTANT: Confirm if the /auth/refresh-token endpoint expects the token
+    // to be sent as { "token": "..." } or if its request body structure also changed.
+    // Assuming it still expects { "token": refreshTokenValue }
     const response = await axiosInstance.post<RefreshTokenResponse>('/auth/refresh-token', {
-      token: refreshToken
+      token: refreshToken 
     });
 
     if (response.data.token) {
