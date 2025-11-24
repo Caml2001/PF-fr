@@ -138,12 +138,12 @@ export const useLoans = () => {
   };
 
   // Seleccionar un préstamo (o por ID o por objeto completo)
-  const selectLoan = (loanOrId: Loan | string) => {
+  const selectLoan = (loanOrId: Loan | string, forceRefetch = false) => {
     const id = typeof loanOrId === 'string' ? loanOrId : loanOrId.id;
     const loan = typeof loanOrId === 'string' ? loans.find(l => l.id === loanOrId) : loanOrId;
 
     // Verificar si ya estamos gestionando este préstamo
-    if (id === selectedLoanId && selectedLoan && selectedLoan.id === id) {
+    if (id === selectedLoanId && selectedLoan && selectedLoan.id === id && !forceRefetch) {
       return; // Evitar actualización innecesaria del estado
     }
 
@@ -151,12 +151,10 @@ export const useLoans = () => {
     setSelectedLoanId(id);
     setSelectedLoan(loan || null);
 
-    // Verificar si necesitamos cargar datos adicionales
-    if (loan && (!loan.scheduleItems || loan.scheduleItems.length === 0)) {
-      // Verificar si ya estamos cargando este préstamo
-      if (!fetchingLoanIds[id]) {
-        fetchLoanById(id, false); // No mostramos loader si ya tenemos datos básicos
-      }
+    // Siempre cargar los detalles completos del préstamo desde el servidor
+    // para asegurar que tenemos la información más actualizada
+    if (!fetchingLoanIds[id]) {
+      fetchLoanById(id, false); // No mostramos loader si ya tenemos datos básicos
     }
   };
 
@@ -183,7 +181,7 @@ export const useLoans = () => {
   // Usamos useRef para hacer seguimiento del ID seleccionado actual y evitar peticiones duplicadas
   const currentLoanIdRef = useRef<string | null>(null);
 
-  // Cuando cambia el ID seleccionado, cargar detalles si es necesario
+  // Cuando cambia el ID seleccionado, asegurar que el préstamo esté en el estado
   useEffect(() => {
     // Prevenir peticiones duplicadas para el mismo ID
     if (selectedLoanId === currentLoanIdRef.current) {
@@ -196,15 +194,8 @@ export const useLoans = () => {
       const loan = loans.find(l => l.id === selectedLoanId);
       if (loan) {
         setSelectedLoan(loan);
-
-        // Solo cargamos los detalles completos si no tenemos la tabla de amortización
-        if (!loan.scheduleItems || loan.scheduleItems.length === 0) {
-          // Verificamos nuevamente si ya estamos cargando este préstamo
-          if (!fetchingLoanIds[selectedLoanId]) {
-            fetchLoanById(selectedLoanId, false);
-          }
-        }
       }
+      // La carga de detalles se maneja ahora en selectLoan()
     }
   }, [selectedLoanId]);
 

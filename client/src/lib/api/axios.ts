@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import { refreshAccessToken } from './authService';
 
 const apiClient = axios.create({
-  baseURL: 'https://api.prestafirme.com', // Your backend API base URL
+  baseURL: 'http://localhost:4001', // Your backend API base URL
   headers: {
     'Content-Type': 'application/json',
   },

@@ -80,6 +80,9 @@ export interface ScheduleItem {
   total: number;
   remainingBalance: number;
   status: 'paid' | 'pending';
+  totalPaid?: number; // Monto total pagado para este periodo
+  paid?: boolean; // Si está completamente pagado
+  partiallyPaid?: boolean; // Si está parcialmente pagado
 }
 
 export interface Loan {
@@ -119,6 +122,8 @@ const mapLoanStatus = (apiStatus: string): 'active' | 'completed' | 'pending' =>
     case 'ACTIVE':
       return 'active';
     case 'COMPLETED':
+    case 'PAID_OFF':
+    case 'PAID':
       return 'completed';
     case 'PENDING_APPROVAL':
     default:
@@ -141,7 +146,11 @@ const transformScheduleItemV2 = (apiItem: ApiScheduleItemV2): ScheduleItem => {
     interest: apiItem.interestDue || 0,
     total: apiItem.totalDue || 0,
     remainingBalance: apiItem.remainingDue || 0,
-    status: apiItem.paid ? 'paid' : 'pending'
+    status: apiItem.paid ? 'paid' : 'pending',
+    // Preservar información adicional de pagos
+    totalPaid: apiItem.totalPaid || 0,
+    paid: apiItem.paid,
+    partiallyPaid: apiItem.partiallyPaid
   };
 };
 
@@ -246,6 +255,29 @@ export const getLoans = async (): Promise<Loan[]> => {
   }
 };
 
+// Derivar payments desde los items del schedule
+const derivePaymentsFromSchedule = (scheduleItems: ScheduleItem[]): Payment[] => {
+  const payments: Payment[] = [];
+
+  for (const item of scheduleItems) {
+    // Si el item tiene pagos realizados (paid o partiallyPaid), crear registro de pago
+    if (item.paid || item.partiallyPaid) {
+      const amountPaid = item.totalPaid || 0;
+
+      if (amountPaid > 0) {
+        payments.push({
+          id: `payment-${item.paymentNumber}`,
+          date: item.date,
+          amount: amountPaid,
+          status: item.paid ? 'paid' : 'pending' // Si está completamente pagado, status es 'paid'
+        });
+      }
+    }
+  }
+
+  return payments;
+};
+
 // Obtener un préstamo específico por ID con detalles completos
 export const getLoanById = async (loanId: string): Promise<Loan | null> => {
   try {
@@ -328,6 +360,25 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
       totalAmount
     };
 
+    // Derivar payments desde el schedule si tenemos scheduleItems
+    if (loan.scheduleItems && loan.scheduleItems.length > 0) {
+      const derivedPayments = derivePaymentsFromSchedule(loan.scheduleItems);
+      // Si tenemos payments derivados, actualizarlos
+      if (derivedPayments.length > 0) {
+        loan.payments = derivedPayments;
+
+        // Actualizar también nextPayment basado en el primer pago pendiente del schedule
+        const nextPendingItem = loan.scheduleItems.find(item => !item.paid && (item.totalPaid || 0) === 0);
+        if (nextPendingItem) {
+          loan.nextPayment = {
+            date: nextPendingItem.date,
+            amount: nextPendingItem.total,
+            status: 'pending'
+          };
+        }
+      }
+    }
+
     // Cache the result with timestamp
     try {
       sessionStorage.setItem(LOAN_CACHE_KEY, JSON.stringify({
@@ -390,17 +441,27 @@ export const getLoanSchedule = async (loanId: string): Promise<ScheduleItem[]> =
 };
 
 // Obtener los pagos de un préstamo
+// Nota: Los pagos se derivan del schedule, no hay endpoint separado para payments
 export const getLoanPayments = async (loanId: string): Promise<Payment[]> => {
   try {
-    const response = await apiClient.get(`/api/loans/${loanId}/payments`);
-    const apiPayments: ApiPayment[] = response.data;
-    
-    return apiPayments.map(p => ({
-      id: p.id,
-      date: formatDateToSpanish(p.dueDate),
-      amount: p.amount,
-      status: mapPaymentStatus(p.status)
-    }));
+    // Obtener el préstamo completo que incluye schedule
+    const loan = await getLoanById(loanId);
+
+    if (!loan) {
+      return [];
+    }
+
+    // Si ya tenemos payments derivados, usarlos
+    if (loan.payments && loan.payments.length > 0) {
+      return loan.payments;
+    }
+
+    // Si no, derivarlos del schedule
+    if (loan.scheduleItems && loan.scheduleItems.length > 0) {
+      return derivePaymentsFromSchedule(loan.scheduleItems);
+    }
+
+    return [];
   } catch (error) {
     console.error(`Error al obtener pagos del préstamo #${loanId}:`, error);
     return [];
@@ -416,4 +477,17 @@ export const makeAdvancePayment = async (loanId: string, amount: number): Promis
     console.error(`Error al realizar pago adelantado en préstamo #${loanId}:`, error);
     throw error;
   }
-}; 
+};
+
+// Procesar pago con tarjeta usando Stripe (monto en centavos)
+export const payLoanWithCard = async (loanId: string, amountMinor: number) => {
+  try {
+    const response = await apiClient.post(`/api/loans/${loanId}/payments/stripe`, {
+      amountMinor
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error al procesar pago con tarjeta para préstamo #${loanId}:`, error);
+    throw error;
+  }
+};

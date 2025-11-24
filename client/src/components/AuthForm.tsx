@@ -46,8 +46,9 @@ const AuthForm: React.FC<AuthFormProps> = ({ onLogin, onStartSignup }) => {
             const statusResponse = await fetchOnboardingStatus();
             console.log('Estado de onboarding después del login:', statusResponse);
             
-            if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' || 
-                statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED') {
+            if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' ||
+                statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED' ||
+                statusResponse.status === 'BNPL_READY') {
               // Usuario ya completó onboarding, ir al dashboard
               console.log('Onboarding completo, navegando a /home');
               onLogin(token);

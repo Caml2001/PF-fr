@@ -56,7 +56,7 @@ export default function HomeSection() {
           <div className="mb-3 flex items-center">
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 gap-1.5 mr-3 px-3 py-1 text-sm rounded-full">
               <StarIcon className="h-4 w-4" />
-              Preaprobado
+              Aprobado
             </Badge>
             <span className="text-base text-muted-foreground">Tu línea de crédito disponible</span>
           </div>

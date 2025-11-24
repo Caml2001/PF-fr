@@ -97,6 +97,21 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     }
   }, [loanId]);
 
+  // Efecto para cargar datos cuando cambia la vista
+  useEffect(() => {
+    if (!selectedLoan || !view) return;
+
+    // Si estamos en la vista de pagos y no tenemos payments, refrescar
+    if (view === 'payments' && (!selectedLoan.payments || selectedLoan.payments.length === 0)) {
+      refreshLoans(false);
+    }
+
+    // Si estamos en la vista de schedule y no tenemos scheduleItems, refrescar
+    if (view === 'schedule' && (!selectedLoan.scheduleItems || selectedLoan.scheduleItems.length === 0)) {
+      refreshLoans(false);
+    }
+  }, [view, selectedLoan?.id]);
+
   // Función para volver a la vista principal de préstamos o a los detalles
   const handleBack = () => {
     if (view) {
@@ -108,24 +123,16 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     }
   };
 
-  // Función para mostrar la vista de pagos (solo navegación, no actualiza estados)
+  // Función para mostrar la vista de pagos (solo navegación)
   const handleViewPayments = () => {
     if (selectedLoan) {
-      // Prefetch the loan details if needed
-      if (!selectedLoan.payments || selectedLoan.payments.length === 0) {
-        refreshLoans(false); // Silently refresh loans
-      }
       navigate(`/loans/${selectedLoan.id}/payments`);
     }
   };
 
-  // Función para mostrar la tabla de amortización (solo navegación, no actualiza estados)
+  // Función para mostrar la tabla de amortización (solo navegación)
   const handleViewPaymentSchedule = () => {
     if (selectedLoan) {
-      // Prefetch the loan schedule if needed
-      if (!selectedLoan.scheduleItems || selectedLoan.scheduleItems.length === 0) {
-        refreshLoans(false); // Silently refresh loans
-      }
       navigate(`/loans/${selectedLoan.id}/schedule`);
     }
   };
@@ -159,13 +166,22 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     return <CreditApplicationForm onLogout={() => navigate('/loans')} />;
   }
 
+  // Helper para obtener el monto del siguiente pago
+  const getNextPaymentAmount = (loan: Loan): number => {
+    if (loan.nextPayment?.amount) return loan.nextPayment.amount;
+    const nextPending = loan.payments?.find(p => p.status === 'pending');
+    return nextPending ? nextPending.amount : 0;
+  };
+
   // Si estamos mostrando el formulario de adelanto de pago
   if (view === 'advance-payment' && selectedLoan) {
     const pendingAmount = calculatePendingAmount(selectedLoan);
+    const nextPaymentAmount = getNextPaymentAmount(selectedLoan);
     return (
       <AdvancePaymentForm
         loanId={selectedLoan.id}
         pendingAmount={pendingAmount}
+        nextPaymentAmount={nextPaymentAmount}
         onBack={handleBack}
       />
     );
@@ -498,19 +514,42 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
   // Renderiza la vista de pagos
   const renderPayments = () => {
     if (!selectedLoan) return null;
-    
+
+    // Calcular total pagado
+    const totalPaid = selectedLoan.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+    const paymentCount = selectedLoan.payments?.length || 0;
+
     return (
       <>
-        <PageHeader title="Pagos del préstamo" onBack={handleBack} />
-        
-        <div className="mb-4 flex justify-between items-center">
-          <div>
-            <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id.slice(-4)}</span>
-            <h3 className="text-lg font-bold">{formatCurrency(selectedLoan.amount)}</h3>
+        <PageHeader title="Historial de pagos" onBack={handleBack} />
+
+        <div className="mb-4">
+          <div className="flex justify-between items-center mb-3">
+            <div>
+              <span className="text-xs text-muted-foreground">Préstamo #{selectedLoan.id.slice(-4)}</span>
+              <h3 className="text-lg font-bold">{formatCurrency(selectedLoan.amount)}</h3>
+            </div>
+            <LoanStatusBadge status={selectedLoan.status} />
           </div>
-          <LoanStatusBadge status={selectedLoan.status} />
+
+          {totalPaid > 0 && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="p-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total pagado</p>
+                    <p className="text-lg font-bold text-primary">{formatCurrency(totalPaid)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Pagos realizados</p>
+                    <p className="text-lg font-bold">{paymentCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
-        
+
         <SectionContainer>
           {selectedLoan.status === 'pending' ? (
             <Card className="bg-amber-50 border border-amber-200">
@@ -526,19 +565,19 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                     <div className="flex justify-between items-center">
                       <div>
                         <p className="font-medium">{formatCurrency(payment.amount)}</p>
-                        <span className="text-xs text-muted-foreground">Pago • {payment.date}</span>
+                        <span className="text-xs text-muted-foreground">{payment.date}</span>
                       </div>
-                      
+
                       {payment.status === 'paid' ? (
-                        <div className="flex items-center text-green-600">
-                          <CheckCircleIcon className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Pagado</span>
-                        </div>
+                        <Badge variant="default" className="bg-green-600">
+                          <CheckCircleIcon className="h-3 w-3 mr-1" />
+                          Pagado
+                        </Badge>
                       ) : (
-                        <div className="flex items-center text-amber-600">
-                          <AlertCircleIcon className="h-4 w-4 mr-1" />
-                          <span className="text-xs">Pendiente</span>
-                        </div>
+                        <Badge variant="outline" className="text-amber-600 border-amber-200">
+                          <AlertCircleIcon className="h-3 w-3 mr-1" />
+                          Parcial
+                        </Badge>
                       )}
                     </div>
                   </CardContent>
@@ -553,12 +592,12 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
             </Card>
           )}
         </SectionContainer>
-        
+
         {selectedLoan.status === 'active' && (
           <div className="mt-6">
             <Button className="w-full" onClick={handleAdvancePayment}>
               <DollarSignIcon className="h-4 w-4 mr-2" />
-              Adelantar pago
+              Realizar pago
             </Button>
           </div>
         )}

@@ -8,28 +8,35 @@ import { Separator } from "@/components/ui/separator";
 import { InfoIcon, CheckCircleIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer } from "@/components/Layout";
+import { payLoanWithCard } from "@/lib/api/loanService";
 
 interface AdvancePaymentFormProps {
   loanId: string;
   pendingAmount: number;
+  nextPaymentAmount?: number;
   onBack: () => void;
 }
 
-export default function AdvancePaymentForm({ loanId, pendingAmount, onBack }: AdvancePaymentFormProps) {
+export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentAmount, onBack }: AdvancePaymentFormProps) {
   const [paymentOption, setPaymentOption] = useState<'nextPayment' | 'customAmount' | 'fullAmount'>('nextPayment');
   const [customAmount, setCustomAmount] = useState<string>("");
   const [step, setStep] = useState<'form' | 'confirmation' | 'success'>('form');
   const [selectedMethod, setSelectedMethod] = useState<'transfer' | 'card'>('transfer');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Cálculo de montos
-  const nextPaymentAmount = 458.33; // En una aplicación real, esto vendría de los props
+  const nextPaymentToUse = Math.min(
+    nextPaymentAmount && nextPaymentAmount > 0 ? nextPaymentAmount : pendingAmount,
+    pendingAmount
+  );
   const fullAmount = pendingAmount;
   
   // Calcular la cantidad a pagar basada en la opción seleccionada
   const getPaymentAmount = () => {
     switch (paymentOption) {
       case 'nextPayment':
-        return nextPaymentAmount;
+        return nextPaymentToUse;
       case 'customAmount':
         return customAmount ? parseFloat(customAmount) : 0;
       case 'fullAmount':
@@ -40,8 +47,32 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, onBack }: Ad
   };
 
   // Manejar el envío del formulario
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    const amount = getPaymentAmount();
+    if (amount <= 0) {
+      setErrorMessage('El monto debe ser mayor a 0');
+      return;
+    }
+
+    if (selectedMethod === 'card') {
+      try {
+        setIsProcessing(true);
+        setErrorMessage(null);
+        const amountMinor = Math.round(amount * 100); // Convertir a centavos
+        await payLoanWithCard(loanId, amountMinor);
+        setStep('success');
+      } catch (err: any) {
+        const apiMessage = err?.response?.data?.message;
+        setErrorMessage(apiMessage || 'No pudimos procesar el pago con tarjeta. Intenta de nuevo.');
+      } finally {
+        setIsProcessing(false);
+      }
+      return;
+    }
+
+    setErrorMessage(null);
     setStep('confirmation');
   };
 
@@ -68,7 +99,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, onBack }: Ad
                         Próximo pago
                       </Label>
                       <p className="text-muted-foreground text-xs">Pagar solo el siguiente pago programado</p>
-                      <p className="font-medium mt-1">{formatCurrency(nextPaymentAmount)}</p>
+                      <p className="font-medium mt-1">{formatCurrency(nextPaymentToUse)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -147,8 +178,16 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, onBack }: Ad
           </RadioGroup>
         </SectionContainer>
 
-        <Button type="submit" className="w-full" disabled={paymentOption === 'customAmount' && (!customAmount || parseFloat(customAmount) <= 0)}>
-          Continuar
+        {errorMessage && (
+          <p className="text-sm text-red-600 mb-3">{errorMessage}</p>
+        )}
+
+        <Button 
+          type="submit" 
+          className="w-full" 
+          disabled={isProcessing || (paymentOption === 'customAmount' && (!customAmount || parseFloat(customAmount) <= 0))}
+        >
+          {isProcessing ? 'Procesando...' : 'Continuar'}
         </Button>
       </form>
     );
@@ -229,7 +268,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, onBack }: Ad
         
         <h3 className="text-xl font-bold mb-2">¡Pago registrado!</h3>
         <p className="text-muted-foreground mb-6">
-          Hemos recibido tu solicitud de pago por {formatCurrency(getPaymentAmount())}
+          Hemos recibido tu pago por {formatCurrency(getPaymentAmount())}
         </p>
         
         <SectionContainer>

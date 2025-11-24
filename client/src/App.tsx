@@ -150,7 +150,8 @@ export default function App() {
         'completed',
         'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
         'DUMMY_BUREAU_CHECK_COMPLETED',
-        'CREDIT_REPORT_AVAILABLE_DUMMY'
+        'CREDIT_REPORT_AVAILABLE_DUMMY',
+        'BNPL_READY'
       ];
       const isActuallyCompleted = completedStatuses.includes(res.status);
 
@@ -307,7 +308,8 @@ export default function App() {
           const isProtectedRoute = validSecuredPaths.some(path => currentLocation.startsWith(path));
           const completedStatuses = [
             'complete', 'completed', 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
-            'DUMMY_BUREAU_CHECK_COMPLETED', 'CREDIT_REPORT_AVAILABLE_DUMMY'
+            'DUMMY_BUREAU_CHECK_COMPLETED', 'CREDIT_REPORT_AVAILABLE_DUMMY',
+            'BNPL_READY'
           ];
           const isServerStatusComplete = serverStatus && completedStatuses.includes(serverStatus);
 
@@ -544,7 +546,8 @@ export default function App() {
     'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN',
     'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED',
     'DUMMY_BUREAU_CHECK_COMPLETED',
-    'CREDIT_REPORT_AVAILABLE_DUMMY'
+    'CREDIT_REPORT_AVAILABLE_DUMMY',
+    'BNPL_READY'
   ];
 
   // Usuario con INE en revisión - caso especial

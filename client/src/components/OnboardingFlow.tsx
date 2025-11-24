@@ -295,8 +295,9 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
                   const statusResponse = await fetchOnboardingStatus();
                   console.log('Estado de onboarding:', statusResponse);
                   
-                  if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' || 
-                      statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED') {
+                  if (statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_GIVEN' ||
+                      statusResponse.status === 'PROFILE_COMPLETE_BUREAU_CONSENT_DENIED' ||
+                      statusResponse.status === 'BNPL_READY') {
                     // Usuario ya completó onboarding, ir al dashboard
                     console.log('Onboarding completo, navegando a /home');
                     window.location.href = '/home';
