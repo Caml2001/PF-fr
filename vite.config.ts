@@ -34,7 +34,9 @@ export default defineConfig({
       overlay: false
     }
   },
+  envDir: __dirname,
   root: path.resolve(__dirname, "client"),
+  base: "/",
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,

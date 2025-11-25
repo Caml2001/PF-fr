@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig, AxiosError } from 'axios';
 import { refreshAccessToken } from './authService';
 
 const apiClient = axios.create({
-  baseURL: 'http://localhost:4001', // Your backend API base URL
+  baseURL: import.meta.env.VITE_API_URL, // Usa la variable de entorno o el valor por defecto
   headers: {
     'Content-Type': 'application/json',
   },
