@@ -11,23 +11,53 @@
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
 
     <!-- Amplitude Session Replay -->
-    <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
-    <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.23.2-min.js.gz"></script>
     <script>
-      // Wait for Amplitude to be loaded before initializing
-      (function initAmplitude() {
-        if (window.amplitude && window.sessionReplay) {
-          try {
-            window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
-            window.amplitude.init('b6211dfd4f47601421617b70c9cc61d3');
-            console.log('Amplitude initialized successfully');
-          } catch (error) {
-            console.error('Error initializing Amplitude:', error);
+      // Load Amplitude scripts dynamically with proper error handling
+      (function loadAmplitude() {
+        // Load analytics-browser
+        const amplitudeScript = document.createElement('script');
+        amplitudeScript.src = 'https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz';
+        amplitudeScript.async = false;
+
+        // Load session replay plugin
+        const sessionReplayScript = document.createElement('script');
+        sessionReplayScript.src = 'https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.23.2-min.js.gz';
+        sessionReplayScript.async = false;
+
+        // Initialize Amplitude after both scripts load
+        let scriptsLoaded = 0;
+        const initAmplitude = function() {
+          scriptsLoaded++;
+          if (scriptsLoaded === 2) {
+            // Wait a bit for global objects to be available
+            setTimeout(function() {
+              if (window.amplitude && window.sessionReplay) {
+                try {
+                  window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+                  window.amplitude.init('b6211dfd4f47601421617b70c9cc61d3');
+                  console.log('Amplitude initialized successfully');
+                } catch (error) {
+                  console.error('Error initializing Amplitude:', error);
+                }
+              } else {
+                console.error('Amplitude objects not available after script load');
+              }
+            }, 100);
           }
-        } else {
-          // Retry after a short delay if not loaded yet
-          setTimeout(initAmplitude, 100);
-        }
+        };
+
+        amplitudeScript.onload = initAmplitude;
+        sessionReplayScript.onload = initAmplitude;
+
+        amplitudeScript.onerror = function() {
+          console.error('Failed to load Amplitude analytics script');
+        };
+        sessionReplayScript.onerror = function() {
+          console.error('Failed to load Amplitude session replay script');
+        };
+
+        document.head.appendChild(amplitudeScript);
+        document.head.appendChild(sessionReplayScript);
       })();
     </script>
   </head>
