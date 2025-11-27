@@ -1,4 +1,12 @@
 // Amplitude helper functions
+import * as amplitude from '@amplitude/analytics-browser';
+import { sessionReplayPlugin } from '@amplitude/plugin-session-replay-browser';
+
+// API Key for Amplitude
+const AMPLITUDE_API_KEY = 'b6211dfd4f47601421617b70c9cc61d3';
+
+// Track initialization status
+let isInitialized = false;
 
 interface AmplitudeUser {
   id: string;
@@ -8,67 +16,52 @@ interface AmplitudeUser {
 }
 
 /**
- * Checks if Amplitude is available
+ * Initialize Amplitude with session replay
+ * Should be called once when the app starts
  */
-const isAmplitudeAvailable = (): boolean => {
-  return typeof window !== 'undefined' && !!window.amplitude;
-};
+export const initAmplitude = (): void => {
+  if (isInitialized) {
+    console.log('Amplitude already initialized');
+    return;
+  }
 
-/**
- * Waits for Amplitude to be available with retries
- */
-const waitForAmplitude = (callback: () => void, maxRetries = 10): void => {
-  let attempts = 0;
+  try {
+    // Add session replay plugin
+    amplitude.add(sessionReplayPlugin({ sampleRate: 1 }));
 
-  const check = () => {
-    attempts++;
+    // Initialize Amplitude
+    amplitude.init(AMPLITUDE_API_KEY);
 
-    if (isAmplitudeAvailable()) {
-      callback();
-    } else if (attempts < maxRetries) {
-      setTimeout(check, 200); // Retry every 200ms
-    } else {
-      console.warn('Amplitude is not available after', maxRetries, 'attempts');
-    }
-  };
-
-  check();
+    isInitialized = true;
+    console.log('Amplitude initialized successfully');
+  } catch (error) {
+    console.error('Error initializing Amplitude:', error);
+  }
 };
 
 /**
  * Sets the user ID in Amplitude and identifies user properties
  */
 export const setAmplitudeUser = (user: AmplitudeUser): void => {
-  const setUser = () => {
-    try {
-      if (!isAmplitudeAvailable()) {
-        console.warn('Amplitude is not available');
-        return;
-      }
-
-      // Set user ID
-      window.amplitude.setUserId(user.id);
-
-      // Identify user properties
-      const identify = new window.amplitude.Identify();
-      identify.set('email', user.email);
-      if (user.role) identify.set('role', user.role);
-      if (user.onboardingStatus) identify.set('onboardingStatus', user.onboardingStatus);
-
-      window.amplitude.identify(identify);
-
-      console.log('Amplitude userId set:', user.id);
-    } catch (error) {
-      console.error('Error setting Amplitude user:', error);
+  try {
+    if (!isInitialized) {
+      initAmplitude();
     }
-  };
 
-  // If Amplitude is not immediately available, wait for it
-  if (!isAmplitudeAvailable()) {
-    console.log('Waiting for Amplitude to load...');
-    waitForAmplitude(setUser);
-  } else {
-    setUser();
+    // Set user ID
+    amplitude.setUserId(user.id);
+
+    // Identify user properties
+    const identify = new amplitude.Identify();
+    identify.set('email', user.email);
+    if (user.role) identify.set('role', user.role);
+    if (user.onboardingStatus) identify.set('onboardingStatus', user.onboardingStatus);
+
+    amplitude.identify(identify);
+
+    console.log('Amplitude userId set:', user.id);
+  } catch (error) {
+    console.error('Error setting Amplitude user:', error);
   }
 };
 
@@ -77,13 +70,28 @@ export const setAmplitudeUser = (user: AmplitudeUser): void => {
  */
 export const clearAmplitudeUser = (): void => {
   try {
-    if (!isAmplitudeAvailable()) {
+    if (!isInitialized) {
       return;
     }
 
-    window.amplitude.setUserId(null);
+    amplitude.setUserId(null);
     console.log('Amplitude userId cleared');
   } catch (error) {
     console.error('Error clearing Amplitude user:', error);
+  }
+};
+
+/**
+ * Track a custom event in Amplitude
+ */
+export const trackAmplitudeEvent = (eventName: string, eventProperties?: Record<string, any>): void => {
+  try {
+    if (!isInitialized) {
+      initAmplitude();
+    }
+
+    amplitude.track(eventName, eventProperties);
+  } catch (error) {
+    console.error('Error tracking Amplitude event:', error);
   }
 };
