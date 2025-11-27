@@ -9,6 +9,14 @@
     <meta name="theme-color" content="rgb(248, 249, 251)" />
     <meta name="description" content="Solicita préstamos rápidos y seguros con MicroPréstamos" />
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+
+    <!-- Amplitude Session Replay -->
+    <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
+    <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.23.2-min.js.gz"></script>
+    <script>
+      window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+      window.amplitude.init('b6211dfd4f47601421617b70c9cc61d3');
+    </script>
   </head>
   <body>
     <div id="root"></div>
