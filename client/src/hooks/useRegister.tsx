@@ -1,5 +1,6 @@
 import { useMutation, UseMutationOptions } from '@tanstack/react-query';
-import { signup, SignupData, AuthResponse } from '../lib/api/authService'; 
+import { signup, SignupData, AuthResponse } from '../lib/api/authService';
+import { setAmplitudeUser } from '../lib/amplitude';
 
 export const useRegister = (
   options?: Omit<
@@ -8,7 +9,7 @@ export const useRegister = (
   >
 ) => {
   return useMutation<AuthResponse, Error, SignupData>({
-    mutationFn: signup, 
+    mutationFn: signup,
     ...options,
     onSuccess: (data, variables, context) => {
       if (data?.accessToken) {
@@ -16,16 +17,12 @@ export const useRegister = (
 
         // Set userId in Amplitude for session replay and events
         if (data.user?.id) {
-          window.amplitude.setUserId(data.user.id);
-
-          // Identify user properties in Amplitude
-          const identify = new window.amplitude.Identify();
-          identify.set('email', data.user.email);
-          if (data.user.role) identify.set('role', data.user.role);
-          if (data.user.onboardingStatus) identify.set('onboardingStatus', data.user.onboardingStatus);
-          window.amplitude.identify(identify);
-
-          console.log('Amplitude userId set:', data.user.id);
+          setAmplitudeUser({
+            id: data.user.id,
+            email: data.user.email,
+            role: data.user.role,
+            onboardingStatus: data.user.onboardingStatus,
+          });
         }
       } else {
         console.warn('Token not available in response after registration, or signup failed upstream.');

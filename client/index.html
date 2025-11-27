@@ -14,8 +14,21 @@
     <script src="https://cdn.amplitude.com/libs/analytics-browser-2.11.1-min.js.gz"></script>
     <script src="https://cdn.amplitude.com/libs/plugin-session-replay-browser-1.23.2-min.js.gz"></script>
     <script>
-      window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
-      window.amplitude.init('b6211dfd4f47601421617b70c9cc61d3');
+      // Wait for Amplitude to be loaded before initializing
+      (function initAmplitude() {
+        if (window.amplitude && window.sessionReplay) {
+          try {
+            window.amplitude.add(window.sessionReplay.plugin({sampleRate: 1}));
+            window.amplitude.init('b6211dfd4f47601421617b70c9cc61d3');
+            console.log('Amplitude initialized successfully');
+          } catch (error) {
+            console.error('Error initializing Amplitude:', error);
+          }
+        } else {
+          // Retry after a short delay if not loaded yet
+          setTimeout(initAmplitude, 100);
+        }
+      })();
     </script>
   </head>
   <body>
