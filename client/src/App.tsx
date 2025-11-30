@@ -5,7 +5,7 @@ import ProfileSection from "./sections/ProfileSection";
 import SettingsSection from "./sections/SettingsSection";
 import AuthForm from "./components/AuthForm";
 import OnboardingFlow from "./components/OnboardingFlow";
-import CreditApplicationForm from "./components/CreditApplicationForm";
+import PartnersSection from "./sections/PartnersSection";
 import IneReviewStatus from "./components/IneReviewStatus";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
 import { ContentContainer, PageContainer } from "./components/Layout";
@@ -632,7 +632,10 @@ export default function App() {
               <SettingsSection />
             </Route>
             <Route path="/apply">
-              <CreditApplicationForm onLogout={handleLogout} />
+              {() => <Redirect to="/partners" />}
+            </Route>
+            <Route path="/partners">
+              <PartnersSection />
             </Route>
             <Route path="/account/review">
               <IneReviewStatus onGoHome={() => navigate('/home')} />

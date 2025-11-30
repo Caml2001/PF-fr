@@ -101,10 +101,9 @@ export default function HomeSection() {
                 <Button 
                   className="w-full shadow-sm text-base py-6"
                   variant="secondary"
-                  onClick={() => navigate("/apply")}
-                  disabled={isLoading || !!error || creditInfo.available <= 0}
+                  onClick={() => navigate("/partners")}
                 >
-                  Solicitar crédito <ArrowRightIcon className="h-5 w-5 ml-2" />
+                  Ver comercios aliados <ArrowRightIcon className="h-5 w-5 ml-2" />
                 </Button>
                 <Button 
                   className="w-full text-base py-6 border-white/50 bg-white/10 text-white hover:bg-white/20"

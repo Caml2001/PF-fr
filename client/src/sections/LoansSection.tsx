@@ -18,7 +18,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
-import CreditApplicationForm from "@/components/CreditApplicationForm";
 import AdvancePaymentForm from "@/components/AdvancePaymentForm";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer, SectionHeader } from "@/components/Layout";
 import TopNavMenu from "@/components/TopNavMenu";
@@ -139,7 +138,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
 
   // Función para mostrar el formulario de solicitud
   const handleApplyLoan = () => {
-    navigate('/apply');
+    navigate('/partners');
   };
 
   // Función para mostrar el formulario de adelanto de pago
@@ -171,11 +170,6 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
 
     return 0;
   };
-
-  // Si estamos mostrando el formulario de solicitud
-  if (location === '/apply') {
-    return <CreditApplicationForm onLogout={() => navigate('/loans')} />;
-  }
 
   // Helper para obtener el monto del siguiente pago
   const getNextPaymentAmount = (loan: Loan): number => {
