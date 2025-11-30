@@ -622,6 +622,9 @@ export default function App() {
             <Route path="/loans/:loanId/advance-payment">
               {(params) => <LoansSection loanId={params.loanId} view="advance-payment" />}
             </Route>
+            <Route path="/loans/:loanId/advance-payment/continue">
+              {(params) => <LoansSection loanId={params.loanId} view="advance-payment-continue" />}
+            </Route>
             <Route path="/profile">
               <ProfileSection />
             </Route>

@@ -59,7 +59,7 @@ const LoanStatusBadge = ({ status }: { status: string }) => {
 
 interface LoansSectionProps {
   loanId?: string;
-  view?: 'payments' | 'schedule' | 'advance-payment';
+  view?: 'payments' | 'schedule' | 'advance-payment' | 'advance-payment-continue';
 }
 
 export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
@@ -156,9 +156,20 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
 
   // Calcular el monto pendiente para un préstamo
   const calculatePendingAmount = (loan: Loan): number => {
-    if (!loan.payments || loan.payments.length === 0) return 0;
-    const pendingPayments = loan.payments.filter(p => p.status === "pending");
-    return pendingPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    if (loan.scheduleItems && loan.scheduleItems.length > 0) {
+      return loan.scheduleItems.reduce((sum, item) => {
+        if (item.paid || item.status === 'paid') return sum;
+        const remaining = item.remainingBalance ?? Math.max((item.total ?? 0) - (item.totalPaid ?? 0), 0);
+        return sum + remaining;
+      }, 0);
+    }
+
+    if (loan.payments && loan.payments.length > 0) {
+      const pendingPayments = loan.payments.filter(p => p.status === "pending");
+      return pendingPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    }
+
+    return 0;
   };
 
   // Si estamos mostrando el formulario de solicitud
@@ -169,6 +180,12 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
   // Helper para obtener el monto del siguiente pago
   const getNextPaymentAmount = (loan: Loan): number => {
     if (loan.nextPayment?.amount) return loan.nextPayment.amount;
+    if (loan.scheduleItems && loan.scheduleItems.length > 0) {
+      const nextItem = loan.scheduleItems.find(item => !item.paid && item.status !== 'paid');
+      if (nextItem) {
+        return nextItem.total ?? Math.max((nextItem.totalDue as any) ?? 0, 0);
+      }
+    }
     const nextPending = loan.payments?.find(p => p.status === 'pending');
     return nextPending ? nextPending.amount : 0;
   };
@@ -183,6 +200,19 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
         pendingAmount={pendingAmount}
         nextPaymentAmount={nextPaymentAmount}
         onBack={handleBack}
+      />
+    );
+  }
+  if (view === 'advance-payment-continue' && selectedLoan) {
+    const pendingAmount = calculatePendingAmount(selectedLoan);
+    const nextPaymentAmount = getNextPaymentAmount(selectedLoan);
+    return (
+      <AdvancePaymentForm
+        loanId={selectedLoan.id}
+        pendingAmount={pendingAmount}
+        nextPaymentAmount={nextPaymentAmount}
+        onBack={handleBack}
+        startInTransferReview
       />
     );
   }
@@ -365,6 +395,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
       console.log('Estado del préstamo:', selectedLoan.status);
     }
     
+    const hasDetails = !!selectedLoan.details;
     // Calcular totales si no están disponibles en details
     const totalInterest = selectedLoan.details?.totalInterest || 
       (selectedLoan.amount * selectedLoan.interestRate / 100 * (selectedLoan.term / 52));
@@ -476,25 +507,35 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
         <Card className="overflow-hidden">
           <CardContent className="p-4">
             <h3 className="font-medium mb-3">Resumen del préstamo</h3>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Monto solicitado</span>
-                <span>{formatCurrency(selectedLoan.amount)}</span>
+            {hasDetails ? (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Monto solicitado</span>
+                  <span>{formatCurrency(selectedLoan.amount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Comisión</span>
+                  <span>{formatCurrency(selectedLoan.commissionAmount)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Interés total</span>
+                  <span>{formatCurrency(totalInterest)}</span>
+                </div>
+                <Separator className="my-2" />
+                <div className="flex justify-between font-medium">
+                  <span>Total a pagar</span>
+                  <span>{formatCurrency(totalAmount)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Comisión</span>
-                <span>{formatCurrency(selectedLoan.commissionAmount)}</span>
+            ) : (
+              <div className="space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-40" />
+                <Separator className="my-2" />
+                <Skeleton className="h-5 w-36" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-muted-foreground">Interés total</span>
-                <span>{formatCurrency(totalInterest)}</span>
-              </div>
-              <Separator className="my-2" />
-              <div className="flex justify-between font-medium">
-                <span>Total a pagar</span>
-                <span>{formatCurrency(totalAmount)}</span>
-              </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </>
@@ -608,15 +649,17 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     });
   }
 
+  if (loanId && selectedLoan && view === 'schedule') {
+    // Render sin contenedor adicional para mantener padding consistente
+    return <LoanPaymentSchedule loan={selectedLoan} onBack={handleBack} />;
+  }
+
   return (
     <PageContainer>
       <ContentContainer>
         {!loanId && renderLoansList()}
         {loanId && selectedLoan && !view && renderLoanDetails()}
         {loanId && selectedLoan && view === 'payments' && renderPayments()}
-        {loanId && selectedLoan && view === 'schedule' && (
-          <LoanPaymentSchedule loan={selectedLoan} onBack={handleBack} />
-        )}
       </ContentContainer>
     </PageContainer>
   );

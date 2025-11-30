@@ -1,10 +1,14 @@
 import { Sheet } from "@silk-hq/components";
-import { HomeIcon, CreditCardIcon, UserIcon, SettingsIcon } from "lucide-react";
+import { HomeIcon, CreditCardIcon, UserIcon, MessageCircleIcon } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function TopNavMenu() {
   const [location, setLocation] = useLocation();
   const handleNav = (route: string) => setLocation(route);
+  const handleSupport = () => {
+    const whatsappUrl = "https://wa.me/524493876463";
+    window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <Sheet.Root license="commercial">
@@ -36,12 +40,12 @@ export default function TopNavMenu() {
                   <span className="text-xs font-medium text-primary mt-2">Préstamos</span>
                 </div>
                 <div className="flex flex-col items-center flex-1">
-                  <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("/profile")}> <UserIcon className="h-7 w-7 text-primary" /> </button>
+                <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("/profile")}> <UserIcon className="h-7 w-7 text-primary" /> </button>
                   <span className="text-xs font-medium text-primary mt-2">Perfil</span>
                 </div>
                 <div className="flex flex-col items-center flex-1">
-                  <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={() => handleNav("/settings")}> <SettingsIcon className="h-7 w-7 text-primary" /> </button>
-                  <span className="text-xs font-medium text-primary mt-2">Ajustes</span>
+                  <button className="flex items-center justify-center aspect-square w-[64px] rounded-2xl bg-primary/5 hover:bg-primary/10 transition-colors shadow-sm p-2" onClick={handleSupport}> <MessageCircleIcon className="h-7 w-7 text-primary" /> </button>
+                  <span className="text-xs font-medium text-primary mt-2">Soporte</span>
                 </div>
               </div>
             </div>

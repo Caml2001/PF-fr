@@ -1,27 +1,50 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { InfoIcon, CheckCircleIcon } from "lucide-react";
+import { InfoIcon, CheckCircleIcon, CopyIcon, CheckIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer } from "@/components/Layout";
 import { payLoanWithCard } from "@/lib/api/loanService";
+import { useLocation } from "wouter";
+import { Badge } from "@/components/ui/badge";
 
 interface AdvancePaymentFormProps {
   loanId: string;
   pendingAmount: number;
   nextPaymentAmount?: number;
   onBack: () => void;
+  startInTransferReview?: boolean;
 }
 
-export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentAmount, onBack }: AdvancePaymentFormProps) {
+export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentAmount, onBack, startInTransferReview }: AdvancePaymentFormProps) {
+  const [, navigate] = useLocation();
   const [paymentOption, setPaymentOption] = useState<'nextPayment' | 'customAmount' | 'fullAmount'>('nextPayment');
   const [customAmount, setCustomAmount] = useState<string>("");
-  const [step, setStep] = useState<'form' | 'confirmation' | 'success'>('form');
-  const [selectedMethod, setSelectedMethod] = useState<'transfer' | 'card'>('transfer');
+  const [step, setStep] = useState<'form' | 'confirmation' | 'success' | 'transfer-info'>(
+    startInTransferReview ? 'transfer-info' : 'form'
+  );
+  const [selectedMethod, setSelectedMethod] = useState<'transfer' | 'card'>(startInTransferReview ? 'transfer' : 'transfer');
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (startInTransferReview) {
+      setStep('transfer-info');
+      setSelectedMethod('transfer');
+    }
+  }, [startInTransferReview]);
+
+  const handleHeaderBack = () => {
+    if (step === 'transfer-info') {
+      setStep('form');
+      navigate(`/loans/${loanId}/advance-payment`);
+      return;
+    }
+    onBack();
+  };
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
@@ -31,6 +54,13 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     pendingAmount
   );
   const fullAmount = pendingAmount;
+  const concept = loanId.slice(0, 8);
+
+  const handleCopy = (label: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(label);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
   
   // Calcular la cantidad a pagar basada en la opción seleccionada
   const getPaymentAmount = () => {
@@ -46,7 +76,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     }
   };
 
-  // Manejar el envío del formulario
+  // Manejar el envío del formulario (solo tarjeta disponible)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -56,29 +86,30 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
       return;
     }
 
-    if (selectedMethod === 'card') {
-      try {
-        setIsProcessing(true);
-        setErrorMessage(null);
-        const amountMinor = Math.round(amount * 100); // Convertir a centavos
-        await payLoanWithCard(loanId, amountMinor);
-        setStep('success');
-      } catch (err: any) {
-        const apiMessage = err?.response?.data?.message;
-        setErrorMessage(apiMessage || 'No pudimos procesar el pago con tarjeta. Intenta de nuevo.');
-      } finally {
-        setIsProcessing(false);
-      }
+    if (selectedMethod === 'transfer') {
+      setErrorMessage(null);
+      setStep('transfer-info');
+      navigate(`/loans/${loanId}/advance-payment/continue`);
       return;
     }
 
-    setErrorMessage(null);
-    setStep('confirmation');
+    try {
+      setIsProcessing(true);
+      setErrorMessage(null);
+      const amountMinor = Math.round(amount * 100); // Convertir a centavos
+      await payLoanWithCard(loanId, amountMinor);
+      setStep('success');
+    } catch (err: any) {
+      const apiMessage = err?.response?.data?.message;
+      setErrorMessage(apiMessage || 'No pudimos procesar el pago con tarjeta. Intenta de nuevo.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Confirmar el pago
   const handleConfirm = () => {
-    // Aquí iría la lógica para procesar el pago
+    // Para transferencia, solo mostramos éxito/instrucciones
     setStep('success');
   };
 
@@ -94,11 +125,11 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
                 <CardContent className="p-3">
                   <div className="flex items-start">
                     <RadioGroupItem value="nextPayment" id="nextPayment" className="mt-1" />
-                    <div className="ml-3">
-                      <Label htmlFor="nextPayment" className="font-medium">
-                        Próximo pago
-                      </Label>
-                      <p className="text-muted-foreground text-xs">Pagar solo el siguiente pago programado</p>
+                <div className="ml-3">
+                  <Label htmlFor="nextPayment" className="font-medium">
+                    Próximo pago
+                  </Label>
+                  <p className="text-muted-foreground text-xs">Pagar solo el siguiente pago programado</p>
                       <p className="font-medium mt-1">{formatCurrency(nextPaymentToUse)}</p>
                     </div>
                   </div>
@@ -107,9 +138,9 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
               <Card className={`border ${paymentOption === 'customAmount' ? 'border-primary' : 'border-border'}`}>
                 <CardContent className="p-3">
-                  <div className="flex items-start">
-                    <RadioGroupItem value="customAmount" id="customAmount" className="mt-1" />
-                    <div className="ml-3 w-full">
+              <div className="flex items-start">
+                <RadioGroupItem value="customAmount" id="customAmount" className="mt-1" />
+                <div className="ml-3 w-full">
                       <Label htmlFor="customAmount" className="font-medium">
                         Cantidad personalizada
                       </Label>
@@ -161,6 +192,9 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
                       Transferencia bancaria
                     </Label>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Recibirás instrucciones para transferir
+                  </p>
                 </CardContent>
               </Card>
 
@@ -172,6 +206,9 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
                       Tarjeta de crédito/débito
                     </Label>
                   </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Pago inmediato con tarjeta
+                  </p>
                 </CardContent>
               </Card>
             </div>
@@ -187,7 +224,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
           className="w-full" 
           disabled={isProcessing || (paymentOption === 'customAmount' && (!customAmount || parseFloat(customAmount) <= 0))}
         >
-          {isProcessing ? 'Procesando...' : 'Continuar'}
+          {isProcessing ? 'Procesando...' : selectedMethod === 'transfer' ? 'Continuar con transferencia' : 'Continuar'}
         </Button>
       </form>
     );
@@ -195,6 +232,10 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
   // Renderizar la vista de confirmación
   const renderConfirmation = () => {
+    if (selectedMethod === 'transfer') {
+      return null;
+    }
+
     return (
       <>
         <div className="mb-4">
@@ -225,27 +266,6 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
           </Card>
         </SectionContainer>
 
-        {selectedMethod === 'transfer' && (
-          <SectionContainer>
-            <Card className="bg-accent mb-0">
-              <CardContent className="p-4">
-                <div className="flex items-start">
-                  <InfoIcon className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-medium text-sm">Datos para transferencia</h4>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Banco: BBVA<br />
-                      Cuenta: 012 3456 7890 1234<br />
-                      CLABE: 01234567890123456<br />
-                      A nombre de: PrestaFirme S.A. de C.V.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </SectionContainer>
-        )}
-
         <div className="flex space-x-2">
           <Button variant="outline" className="flex-1" onClick={() => setStep('form')}>
             Regresar
@@ -260,6 +280,10 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
   // Renderizar la vista de éxito
   const renderSuccess = () => {
+    if (selectedMethod === 'transfer') {
+      return null;
+    }
+
     return (
       <div className="text-center py-6">
         <div className="bg-primary/10 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -278,9 +302,16 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
                 <InfoIcon className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
                 <div>
                   {selectedMethod === 'transfer' ? (
-                    <p className="text-sm">
-                      Una vez que realices la transferencia, tu pago será procesado en un plazo de 24 horas hábiles.
-                    </p>
+                    <>
+                      <h4 className="font-medium text-sm">Datos para transferencia</h4>
+                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                        Banco: BBVA<br />
+                        Cuenta: 012 3456 7890 1234<br />
+                        CLABE: 01234567890123456<br />
+                        A nombre de: PrestaFirme S.A. de C.V.<br />
+                    Envía tu comprobante a <span className="font-semibold text-foreground">alejandro@saltopay.com</span> o al WhatsApp <span className="font-semibold text-foreground">449 387 6463</span> para acelerar la aplicación.
+                  </p>
+                    </>
                   ) : (
                     <p className="text-sm">
                       Tu pago con tarjeta será procesado inmediatamente.
@@ -303,11 +334,71 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     <PageContainer>
       <ContentContainer>
         {step !== 'success' && (
-          <PageHeader title="Adelantar pago" onBack={onBack} />
+          <PageHeader title="Adelantar pago" onBack={handleHeaderBack} />
         )}
         
         {step === 'form' && renderForm()}
         {step === 'confirmation' && renderConfirmation()}
+        {step === 'transfer-info' && (
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">Transferencia bancaria</h3>
+              <p className="text-sm text-muted-foreground">
+                Usa estos datos exactamente. El concepto identifica tu pago.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-primary/5 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: 'Banco', value: 'BBVA', mono: false },
+                  { label: 'CLABE', value: '646680177602733217', mono: false },
+                  { label: 'Beneficiario', value: 'SaltoPay', mono: false },
+                  { label: 'Monto a pagar', value: formatCurrency(nextPaymentToUse || fullAmount), mono: false },
+                  { label: 'Concepto', value: concept, mono: false }
+                ].map((item) => (
+                  <div key={item.label} className="col-span-2 sm:col-span-1">
+                    <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{item.label}</p>
+                    <div className="rounded-md bg-white px-3 py-2 font-sm flex items-center justify-between gap-2 shadow-sm">
+                      <span className={item.mono ? 'font-mono text-sm' : 'font-medium'}>{item.value}</span>
+                      <button
+                        type="button"
+                        className="text-muted-foreground hover:text-primary transition"
+                        onClick={() => handleCopy(item.label, String(item.value))}
+                        aria-label={`Copiar ${item.label}`}
+                      >
+                        {copiedField === item.label ? (
+                          <CheckIcon className="h-4 w-4 text-primary" />
+                        ) : (
+                          <CopyIcon className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Envía tu comprobante a <span className="font-semibold text-foreground">alejandro@saltopay.com</span> o al WhatsApp <span className="font-semibold text-foreground">449 387 6463</span>.
+              </p>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setStep('form');
+                  navigate(`/loans/${loanId}/advance-payment`);
+                }}
+              >
+                Regresar
+              </Button>
+              <Button className="flex-1" onClick={onBack}>
+                Listo
+              </Button>
+            </div>
+          </div>
+        )}
         {step === 'success' && renderSuccess()}
       </ContentContainer>
     </PageContainer>
