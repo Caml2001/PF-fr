@@ -66,7 +66,20 @@ export const useLoans = () => {
       if (selectedLoanId) {
         const updatedSelectedLoan = loansData.find(loan => loan.id === selectedLoanId);
         if (updatedSelectedLoan) {
-          setSelectedLoan(updatedSelectedLoan);
+          // Mantener detalles ya cargados (schedule, pagos, nextPayment) si el refresh trae solo datos básicos
+          setSelectedLoan(prev => {
+            if (!prev || prev.id !== selectedLoanId) {
+              return updatedSelectedLoan;
+            }
+
+            return {
+              ...updatedSelectedLoan,
+              scheduleItems: prev.scheduleItems ?? updatedSelectedLoan.scheduleItems,
+              payments: prev.payments ?? updatedSelectedLoan.payments,
+              nextPayment: prev.nextPayment ?? updatedSelectedLoan.nextPayment,
+              details: prev.details ?? updatedSelectedLoan.details
+            };
+          });
         }
       }
 

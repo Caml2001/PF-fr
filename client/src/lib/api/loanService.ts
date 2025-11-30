@@ -181,17 +181,17 @@ const transformApiLoanToLoan = (apiLoan: ApiLoan): Loan => {
   // Convertimos a porcentaje
   const displayRate = annualizedRate * 100;
 
-  // Crear array de pagos si existe
-  const payments: Payment[] = apiLoan.payments ? 
-    apiLoan.payments.map(p => ({
-      id: p.id,
-      date: formatDateToSpanish(p.dueDate),
-      amount: p.amount,
-      status: mapPaymentStatus(p.status)
-    })) : [];
+  // Crear array de pagos si existe (ordenado por dueDate crudo)
+  const sortedApiPayments = apiLoan.payments
+    ? [...apiLoan.payments].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    : [];
 
-  // Ordenar pagos por fecha
-  payments.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const payments: Payment[] = sortedApiPayments.map(p => ({
+    id: p.id,
+    date: formatDateToSpanish(p.dueDate),
+    amount: p.amount,
+    status: mapPaymentStatus(p.status)
+  }));
   
   // Determinar el próximo pago pendiente
   const nextPayment = payments.find(p => p.status === 'pending');
@@ -274,21 +274,27 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
 
     // Detectar qué tipo de datos estamos recibiendo
     if (Array.isArray(scheduleData) && scheduleData.length > 0) {
+      const sortedSchedule = [...scheduleData].sort((a: any, b: any) => {
+        const aDate = a.dueDate || a.expectedDate || a.date;
+        const bDate = b.dueDate || b.expectedDate || b.date;
+        return new Date(aDate).getTime() - new Date(bDate).getTime();
+      });
+
       try {
         // Determinamos el tipo de respuesta según las propiedades
-        if ('periodIndex' in scheduleData[0]) {
+        if ('periodIndex' in sortedSchedule[0]) {
           // Es el nuevo formato (ApiScheduleItemV2)
-          loan.scheduleItems = scheduleData.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
-        } else if ('paymentNumber' in scheduleData[0]) {
+          loan.scheduleItems = sortedSchedule.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
+        } else if ('paymentNumber' in sortedSchedule[0]) {
           // Es el formato anterior (ApiScheduleItem)
-          loan.scheduleItems = scheduleData.map((item: ApiScheduleItem) => transformScheduleItem(item));
+          loan.scheduleItems = sortedSchedule.map((item: ApiScheduleItem) => transformScheduleItem(item));
         } else {
           // Intentamos adaptar los datos al formato esperado
           if (process.env.NODE_ENV === 'development') {
             console.log('Formato de datos no reconocido, intentando adaptar:', scheduleData[0]);
           }
 
-          loan.scheduleItems = scheduleData.map((item: any, index) => {
+          loan.scheduleItems = sortedSchedule.map((item: any, index) => {
             return {
               paymentNumber: item.periodIndex !== undefined ? item.periodIndex + 1 : (item.id || index + 1),
               date: formatDateToSpanish(item.dueDate || new Date().toISOString()),
@@ -343,20 +349,26 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
 // Obtener la tabla de amortización de un préstamo
 export const getLoanSchedule = async (loanId: string): Promise<ScheduleItem[]> => {
   try {
-    // Fetch fresh data if cache is missing or expired
+    // Fetch fresh data
     const response = await apiClient.get(`/api/loans/${loanId}/schedule`);
     const data = response.data;
     let scheduleItems: ScheduleItem[] = [];
 
     // Detectar qué tipo de datos estamos recibiendo
     if (Array.isArray(data) && data.length > 0) {
+      const sortedData = [...data].sort((a: any, b: any) => {
+        const aDate = a.dueDate || a.expectedDate || a.date;
+        const bDate = b.dueDate || b.expectedDate || b.date;
+        return new Date(aDate).getTime() - new Date(bDate).getTime();
+      });
+
       // Determinamos el tipo de respuesta según las propiedades
-      if ('periodIndex' in data[0]) {
+      if ('periodIndex' in sortedData[0]) {
         // Es el nuevo formato (ApiScheduleItemV2)
-        scheduleItems = data.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
+        scheduleItems = sortedData.map((item: ApiScheduleItemV2) => transformScheduleItemV2(item));
       } else {
         // Es el formato anterior (ApiScheduleItem)
-        scheduleItems = data.map((item: ApiScheduleItem) => transformScheduleItem(item));
+        scheduleItems = sortedData.map((item: ApiScheduleItem) => transformScheduleItem(item));
       }
     }
 
