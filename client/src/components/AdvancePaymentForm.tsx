@@ -109,7 +109,6 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
   // Confirmar el pago
   const handleConfirm = () => {
-    // Para transferencia, solo mostramos éxito/instrucciones
     setStep('success');
   };
 
@@ -232,10 +231,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
   // Renderizar la vista de confirmación
   const renderConfirmation = () => {
-    if (selectedMethod === 'transfer') {
-      return null;
-    }
-
+    // Solo aplica para tarjeta
     return (
       <>
         <div className="mb-4">
