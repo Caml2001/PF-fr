@@ -36,7 +36,7 @@ app.use((req, res, next) => {
   next();
 });
 
-const MAINTENANCE = false; // cambiar a false cuando termines
+const MAINTENANCE = true; // cambiar a false cuando termines
 
 app.use((req, res, next) => {
   if (!MAINTENANCE) return next();
