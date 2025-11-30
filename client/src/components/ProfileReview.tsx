@@ -1,183 +1,134 @@
-import React, { useState } from 'react';
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { useUpdateProfile } from '../hooks/useUpdateProfile';
+import React, { useMemo } from 'react';
+import { Card, CardContent } from "./ui/card";
+import { Avatar, AvatarFallback } from "./ui/avatar";
+import { Separator } from "./ui/separator";
+import { ProfileData as ApiProfileData } from '../lib/api/profileService';
 
-export interface ProfileData {
-  firstName?: string;
-  middleName?: string;
-  lastName?: string;
-  motherLastName?: string;
-  curp?: string;
-  street?: string;
-  number?: string;
-  colonia?: string;
-  municipality?: string;
-  state?: string;
-  postalCode?: string;
-  ineClaveElector?: string;
-  ineIssueDate?: string;
-  ineExpirationDate?: string;
-}
+export type ProfileData = ApiProfileData;
 
 interface ProfileReviewProps {
   profile: ProfileData;
   onComplete: () => void;
 }
 
-export default function ProfileReview({ profile, onComplete }: ProfileReviewProps) {
-  const [editData, setEditData] = useState<ProfileData>(profile);
-  const [editing, setEditing] = useState(false);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const updateProfileMutation = useUpdateProfile();
+const displayValue = (value?: string | null) => value?.trim() || "No capturado";
 
-  const handleChange = (field: keyof ProfileData, value: string) => {
-    setEditData(prev => ({ ...prev, [field]: value }));
-  };
+const formatProper = (value?: string | null) => {
+  if (!value) return "";
+  return value
+    .trim()
+    .split(/\s+/)
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+};
 
-  const handleEdit = () => setEditing(true);
-  const handleCancel = () => {
-    setEditData(profile);
-    setEditing(false);
-    setApiError(null);
-  };
+const formatFullName = (data: ProfileData) => {
+  const parts = [data.firstName, data.middleName, data.lastName, data.motherLastName]
+    .map(part => formatProper(part))
+    .filter(Boolean);
+  return parts.join(" ");
+};
 
-  const handleSave = () => {
-    setApiError(null);
-    updateProfileMutation.mutate(editData, {
-      onSuccess: (updatedData) => {
-        // Actualizar el estado local con los datos del servidor
-        setEditData(updatedData);
-        setEditing(false);
-        onComplete();
-      },
-      onError: (err: any) => {
-        setApiError(err?.response?.data?.error || err?.message || "Error al actualizar el perfil.");
-      }
-    });
-  };
+const formatAddress = (data: ProfileData) => {
+  const parts = [
+    data.street,
+    data.number,
+    data.colonia,
+    data.postalCode,
+    data.municipality,
+    data.state
+  ].map(part => (part ? part.trim() : "")).filter(Boolean);
+  return parts.join(", ");
+};
+
+export default function ProfileReview({ profile, onComplete: _onComplete }: ProfileReviewProps) {
+  const fullName = useMemo(() => formatFullName(profile), [profile]);
+  const address = useMemo(() => formatAddress(profile), [profile]);
+  const initials = useMemo(() => {
+    if (fullName) {
+      return fullName
+        .split(" ")
+        .slice(0, 2)
+        .map(part => part.charAt(0).toUpperCase())
+        .join("");
+    }
+    return "PF";
+  }, [fullName]);
+
+  const personalFields: { key: keyof ProfileData; label: string }[] = [
+    { key: "firstName", label: "Primer nombre" },
+    { key: "middleName", label: "Segundo nombre" },
+    { key: "lastName", label: "Apellido paterno" },
+    { key: "motherLastName", label: "Apellido materno" },
+    { key: "curp", label: "CURP" },
+  ];
+
+  const addressFields: { key: keyof ProfileData; label: string }[] = [
+    { key: "street", label: "Calle" },
+    { key: "number", label: "Número" },
+    { key: "colonia", label: "Colonia" },
+    { key: "postalCode", label: "Código postal" },
+    { key: "municipality", label: "Municipio/Alcaldía" },
+    { key: "state", label: "Estado" },
+  ];
 
   return (
-    <div className="animate-in fade-in-50 duration-300 max-w-xl mx-auto">
-      <h2 className="text-xl font-bold text-primary mb-4 text-center">Revisa tus datos</h2>
-      <p className="text-muted-foreground text-sm mb-6 text-center">
-        Por favor confirma que tu información es correcta. Si necesitas cambiar algo, hazlo aquí.
-      </p>
+    <div className="animate-in fade-in-50 duration-300 space-y-4">
+      <Card>
+        <CardContent className="p-5 flex items-center gap-3">
+          <Avatar className="h-12 w-12">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground">Nombre completo</p>
+            <h2 className="text-lg font-semibold">{fullName || "Completa tu nombre"}</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+              CURP: {displayValue(profile.curp)}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-      {apiError && (
-        <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md mb-4 text-center">
-          {apiError}
-        </div>
-      )}
-
-      <form className="space-y-4" onSubmit={e => { e.preventDefault(); handleSave(); }}>
-        {editing ? (
-          <div className="grid grid-cols-2 gap-4">
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <Label htmlFor="firstName">Primer Nombre</Label>
-              <Input id="firstName" value={editData.firstName || ''} disabled={!editing} onChange={e => handleChange('firstName', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="middleName">Segundo Nombre</Label>
-              <Input id="middleName" value={editData.middleName || ''} disabled={!editing} onChange={e => handleChange('middleName', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="motherLastName">Apellido Materno</Label>
-              <Input id="motherLastName" value={editData.motherLastName || ''} disabled={!editing} onChange={e => handleChange('motherLastName', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="lastName">Apellido Paterno</Label>
-              <Input id="lastName" value={editData.lastName || ''} disabled={!editing} onChange={e => handleChange('lastName', e.target.value)} />
-            </div>
-            <div className="col-span-2">
-              <Label htmlFor="curp">CURP</Label>
-              <Input id="curp" value={editData.curp || ''} disabled={!editing} onChange={e => handleChange('curp', e.target.value)} className="w-full" maxLength={18} />
-            </div>
-            <div>
-              <Label htmlFor="street">Calle</Label>
-              <Input id="street" value={editData.street || ''} disabled={!editing} onChange={e => handleChange('street', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="number">Número</Label>
-              <Input id="number" value={editData.number || ''} disabled={!editing} onChange={e => handleChange('number', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="colonia">Colonia</Label>
-              <Input id="colonia" value={editData.colonia || ''} disabled={!editing} onChange={e => handleChange('colonia', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="municipality">Municipio/Alcaldía</Label>
-              <Input id="municipality" value={editData.municipality || ''} disabled={!editing} onChange={e => handleChange('municipality', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="state">Estado</Label>
-              <Input id="state" value={editData.state || ''} disabled={!editing} onChange={e => handleChange('state', e.target.value)} />
-            </div>
-            <div>
-              <Label htmlFor="postalCode">Código Postal</Label>
-              <Input id="postalCode" value={editData.postalCode || ''} disabled={!editing} onChange={e => handleChange('postalCode', e.target.value)} />
+              <h3 className="text-base font-semibold">Datos personales</h3>
+              <p className="text-sm text-muted-foreground">
+                Solo lectura. Si algo está mal, repórtalo a soporte.
+              </p>
             </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Primer Nombre</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground">{editData.firstName || ''}</div>
+
+          <Separator />
+
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-4">
+              {personalFields.map((field) => (
+                <div key={field.key} className={field.key === "curp" ? "col-span-2" : ""}>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{field.label}</p>
+                  <div className="mt-1 rounded-md bg-muted/30 px-3 py-2 text-sm text-foreground">
+                    {field.key === "curp"
+                      ? displayValue(profile[field.key] as string)
+                      : formatProper(profile[field.key] as string)}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div>
-              <Label>Segundo Nombre</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground">{editData.middleName || ''}</div>
-            </div>
-            <div>
-              <Label>Apellido Materno</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground">{editData.motherLastName || ''}</div>
-            </div>
-            <div>
-              <Label>Apellido Paterno</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground">{editData.lastName || ''}</div>
-            </div>
-            <div className="col-span-2">
-              <Label>CURP</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground break-all">{editData.curp || ''}</div>
-            </div>
-            <div className="col-span-2">
-              <Label>Dirección</Label>
-              <div className="bg-accent rounded px-3 py-2 text-muted-foreground">
-                {[
-                  editData.street,
-                  editData.number,
-                  editData.colonia,
-                  editData.postalCode,
-                  editData.municipality,
-                  editData.state
-                ].filter(Boolean).join(', ')}
+
+            <Separator />
+
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Dirección</p>
+              <div className="rounded-md bg-muted/30 px-3 py-2 text-sm text-foreground">
+                {address || "No capturada"}
               </div>
             </div>
           </div>
-        )}
-        <div className="flex gap-3 mt-8">
-          {editing ? (
-            <>
-              <Button type="button" variant="outline" className="flex-1 h-12" onClick={handleCancel} disabled={updateProfileMutation.isPending}>Cancelar</Button>
-              <Button type="submit" className="flex-1 h-12" disabled={updateProfileMutation.isPending}>
-                {updateProfileMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
-            </>
-          ) : null}
-        </div>
-        {!editing && (
-          <div className="flex justify-end mt-2">
-            <button
-              type="button"
-              className="text-primary underline text-sm font-medium hover:opacity-80 transition"
-              onClick={handleEdit}
-            >
-              Editar
-            </button>
-          </div>
-        )}
-      </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

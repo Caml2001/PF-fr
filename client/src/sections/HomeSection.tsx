@@ -2,19 +2,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import {
   BadgeCheckIcon,
   ArrowRightIcon,
-  ClockIcon,
   CalendarIcon,
   CheckCircleIcon,
-  StarIcon,
-  HomeIcon,
-  CreditCardIcon,
-  UserIcon,
-  SettingsIcon
+  StarIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
-import { useState } from "react";
-import CreditApplicationForm from "@/components/CreditApplicationForm";
 import { ContentContainer, PageContainer, SectionContainer, SectionHeader } from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -22,22 +15,39 @@ import TopNavMenu from "@/components/TopNavMenu";
 import useCreditInfo from "@/hooks/useCreditInfo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocation } from "wouter";
+import { useProfile } from "@/hooks/useProfile";
+import { Progress } from "@/components/ui/progress";
 
 interface HomeSectionProps {
 }
 
 export default function HomeSection() {
   // Obtener información de crédito desde el backend
-  const { creditInfo, isLoading, error, refreshSilently } = useCreditInfo();
-  const [location, navigate] = useLocation();
+  const { creditInfo, isLoading, error } = useCreditInfo();
+  const [, navigate] = useLocation();
+  const { data: profile } = useProfile();
+
+  const formatName = (name?: string | null) => {
+    if (!name) return null;
+    return name
+      .trim()
+      .split(/\s+/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(" ");
+  };
+
+  const greetingName = formatName(profile?.firstName);
+  const usagePercent = creditInfo.limit > 0
+    ? Math.min((creditInfo.used / creditInfo.limit) * 100, 100)
+    : 0;
 
   return (
     <PageContainer>
       <ContentContainer>
         <div className="flex justify-between items-center mb-6">
           <SectionHeader 
-            title="¡Hola, Carlos!" 
-            subtitle="Bienvenido a PrestaFirme"
+            title={greetingName ? `¡Hola, ${greetingName}!` : "¡Hola!"} 
+            subtitle="Bienvenido a SaltoPay"
           />
           <div className="flex items-center gap-2">
             <Badge className="bg-green-100 text-green-800 hover:bg-green-100 px-3 py-1 text-sm rounded-full">
@@ -51,54 +61,95 @@ export default function HomeSection() {
           </div>
         </div>
         
-        {/* Tarjeta con el monto preaprobado */}
-        <SectionContainer>
-          <div className="mb-3 flex items-center">
-            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 gap-1.5 mr-3 px-3 py-1 text-sm rounded-full">
-              <StarIcon className="h-4 w-4" />
-              Aprobado
-            </Badge>
-            <span className="text-base text-muted-foreground">Tu línea de crédito disponible</span>
-          </div>
-          
-          <div className="mb-5 flex items-center">
-            {isLoading ? (
-              <Skeleton className="h-12 w-40" />
-            ) : error ? (
-              <p className="text-red-500">Error al cargar datos</p>
-            ) : (
-              <>
-                <h2 className="text-4xl font-bold mr-3">{formatCurrency(creditInfo.available)}</h2>
-                <BadgeCheckIcon className="h-6 w-6 text-primary" />
-              </>
-            )}
-          </div>
-          
-          <Button 
-            className="w-full mb-5 shadow-sm text-base py-6 rounded-xl"
-            onClick={() => navigate("/apply")}
-            disabled={isLoading || !!error || creditInfo.available <= 0}
-          >
-            Solicitar ahora <ArrowRightIcon className="h-5 w-5 ml-2" />
-          </Button>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="bg-accent border-0 rounded-xl">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <CalendarIcon className="h-5 w-5 text-primary mr-2" />
-                  <p className="text-sm text-muted-foreground">Plazo</p>
+        <SectionContainer className="space-y-5">
+          <Card className="border-0 bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-primary-foreground/80">Línea disponible</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {isLoading ? (
+                      <Skeleton className="h-10 w-32 bg-white/30" />
+                    ) : error ? (
+                      <span className="text-sm text-red-100">Error al cargar datos</span>
+                    ) : (
+                      <>
+                        <h2 className="text-4xl font-bold">{formatCurrency(creditInfo.available)}</h2>
+                        <BadgeCheckIcon className="h-6 w-6" />
+                      </>
+                    )}
+                  </div>
+                  <p className="text-xs text-primary-foreground/80 mt-1">
+                    Actualizado automáticamente cada 5 min
+                  </p>
                 </div>
-                <p className="text-base font-medium mt-1.5">12-36 meses</p>
-              </CardContent>
-            </Card>
-            <Card className="bg-accent border-0 rounded-xl">
-              <CardContent className="p-4">
-                <div className="flex items-center">
-                  <ClockIcon className="h-5 w-5 text-primary mr-2" />
-                  <p className="text-sm text-muted-foreground">Tasa</p>
+                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                  <StarIcon className="h-4 w-4 mr-1.5" />
+                  Aprobado
+                </Badge>
+              </div>
+
+              <div className="space-y-2">
+                <Progress value={usagePercent} className="bg-white/20" />
+                <div className="flex justify-between text-xs text-primary-foreground/80">
+                  <span>Usado: {formatCurrency(creditInfo.used)}</span>
+                  <span>Límite: {formatCurrency(creditInfo.limit)}</span>
                 </div>
-                <p className="text-base font-medium mt-1.5">1.2% mensual</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  className="w-full shadow-sm text-base py-6"
+                  variant="secondary"
+                  onClick={() => navigate("/apply")}
+                  disabled={isLoading || !!error || creditInfo.available <= 0}
+                >
+                  Solicitar crédito <ArrowRightIcon className="h-5 w-5 ml-2" />
+                </Button>
+                <Button 
+                  className="w-full text-base py-6 border-white/50 bg-white/10 text-white hover:bg-white/20"
+                  variant="outline"
+                  onClick={() => navigate("/loans")}
+                >
+                  Ver mis préstamos
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1">
+            <Card className="bg-accent border-0 rounded-xl">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-primary" />
+                  <p className="text-sm text-muted-foreground">Resumen de tu cuenta</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Límite</p>
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-20" />
+                    ) : (
+                      <p className="font-medium">{formatCurrency(creditInfo.limit)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Usado</p>
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-20" />
+                    ) : (
+                      <p className="font-medium">{formatCurrency(creditInfo.used)}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Disponible</p>
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-20" />
+                    ) : (
+                      <p className="font-medium">{formatCurrency(creditInfo.available)}</p>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>

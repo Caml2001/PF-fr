@@ -29,8 +29,18 @@ export const initAmplitude = (): void => {
     // Add session replay plugin
     amplitude.add(sessionReplayPlugin({ sampleRate: 1 }));
 
-    // Initialize Amplitude
-    amplitude.init(AMPLITUDE_API_KEY);
+    // Initialize Amplitude with proper configuration
+    amplitude.init(AMPLITUDE_API_KEY, {
+      defaultTracking: {
+        sessions: true,
+        pageViews: true,
+        formInteractions: false,
+        fileDownloads: false,
+      },
+      // Flush events immediately for testing (use higher value in production)
+      flushIntervalMillis: 1000,
+      flushQueueSize: 10,
+    });
 
     isInitialized = true;
     console.log('Amplitude initialized successfully');

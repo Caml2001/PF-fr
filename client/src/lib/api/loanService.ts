@@ -217,36 +217,9 @@ const transformApiLoanToLoan = (apiLoan: ApiLoan): Loan => {
 // Obtener todos los préstamos del usuario
 export const getLoans = async (): Promise<Loan[]> => {
   try {
-    // Check cache for fresh data
-    const LOANS_CACHE_KEY = 'pf-loans-cache';
-    const cachedLoans = sessionStorage.getItem(LOANS_CACHE_KEY);
-
-    if (cachedLoans) {
-      try {
-        const { loans, timestamp } = JSON.parse(cachedLoans);
-        const now = Date.now();
-        // If cache is less than 1 minute old, use it
-        if (now - timestamp < 60000) {
-          return loans;
-        }
-      } catch (e) {
-        console.warn('Error parsing cached loans data:', e);
-      }
-    }
-
     const response = await apiClient.get('/api/loans');
     const apiLoans: ApiLoan[] = response.data;
     const loans = apiLoans.map(transformApiLoanToLoan);
-
-    // Cache the results
-    try {
-      sessionStorage.setItem(LOANS_CACHE_KEY, JSON.stringify({
-        loans,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.warn('Error caching loans data:', e);
-    }
 
     return loans;
   } catch (error) {
@@ -281,25 +254,6 @@ const derivePaymentsFromSchedule = (scheduleItems: ScheduleItem[]): Payment[] =>
 // Obtener un préstamo específico por ID con detalles completos
 export const getLoanById = async (loanId: string): Promise<Loan | null> => {
   try {
-    // Cached loan key
-    const LOAN_CACHE_KEY = `pf-loan-${loanId}`;
-    const cachedLoan = sessionStorage.getItem(LOAN_CACHE_KEY);
-
-    // Check if we have fresh cached data (less than 1 minute old)
-    if (cachedLoan) {
-      try {
-        const { loan, timestamp } = JSON.parse(cachedLoan);
-        const now = Date.now();
-        // If cache is less than 1 minute old, use it
-        if (now - timestamp < 60000) {
-          return loan;
-        }
-      } catch (e) {
-        // Continue to fetch if cache parsing fails
-        console.warn('Error parsing cached loan data:', e);
-      }
-    }
-
     // Get loan basic data and schedule in parallel to reduce API calls
     const [loanResponse, scheduleResponse] = await Promise.all([
       apiClient.get(`/api/loans/${loanId}`),
@@ -379,16 +333,6 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
       }
     }
 
-    // Cache the result with timestamp
-    try {
-      sessionStorage.setItem(LOAN_CACHE_KEY, JSON.stringify({
-        loan,
-        timestamp: Date.now()
-      }));
-    } catch (e) {
-      console.warn('Error caching loan data:', e);
-    }
-
     return loan;
   } catch (error) {
     console.error(`Error al obtener préstamo #${loanId}:`, error);
@@ -399,23 +343,6 @@ export const getLoanById = async (loanId: string): Promise<Loan | null> => {
 // Obtener la tabla de amortización de un préstamo
 export const getLoanSchedule = async (loanId: string): Promise<ScheduleItem[]> => {
   try {
-    // Check if we have this data in the loan cache
-    const LOAN_CACHE_KEY = `pf-loan-${loanId}`;
-    const cachedLoan = sessionStorage.getItem(LOAN_CACHE_KEY);
-
-    if (cachedLoan) {
-      try {
-        const { loan, timestamp } = JSON.parse(cachedLoan);
-        const now = Date.now();
-        // If cache is less than 1 minute old and contains scheduleItems, use it
-        if (now - timestamp < 60000 && loan.scheduleItems && loan.scheduleItems.length > 0) {
-          return loan.scheduleItems;
-        }
-      } catch (e) {
-        console.warn('Error parsing cached loan schedule data:', e);
-      }
-    }
-
     // Fetch fresh data if cache is missing or expired
     const response = await apiClient.get(`/api/loans/${loanId}/schedule`);
     const data = response.data;

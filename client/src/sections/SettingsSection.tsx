@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import TopNavMenu from "@/components/TopNavMenu";
 
 export default function SettingsSection() {
   // Estados para los diferentes ajustes
@@ -30,7 +31,12 @@ export default function SettingsSection() {
 
   return (
     <div className="animate-in fade-in-50 duration-300 p-4">
-      <h2 className="text-xl font-bold mb-5">Ajustes</h2>
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-xl font-bold">Ajustes</h2>
+        {(!window.matchMedia('(display-mode: standalone)').matches && !(window.navigator as any).standalone) && (
+          <TopNavMenu />
+        )}
+      </div>
       
       <Card className="mobile-card mb-6">
         <CardContent className="p-4">

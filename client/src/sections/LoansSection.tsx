@@ -252,12 +252,6 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
           title="Mis Préstamos"
           action={
             <div className="flex items-center gap-2">
-              {isRefreshing && (
-                <div className="text-xs text-muted-foreground flex items-center">
-                  <RefreshCwIcon className="h-3 w-3 mr-1 animate-spin" />
-                  Actualizando...
-                </div>
-              )}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -414,10 +408,6 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                 <div>
                   <p className="text-xs text-muted-foreground">Plazo</p>
                   <p className="font-medium">{selectedLoan.term} {selectedLoan.term === 1 ? 'semana' : 'semanas'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tasa</p>
-                  <p className="font-medium">{selectedLoan.interestRate.toFixed(2)}% anual</p>
                 </div>
               </div>
               
