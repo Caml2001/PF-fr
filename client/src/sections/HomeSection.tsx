@@ -96,25 +96,24 @@ export default function HomeSection() {
                   <span>Límite: {formatCurrency(creditInfo.limit)}</span>
                 </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  className="w-full shadow-sm text-base py-6"
-                  variant="secondary"
-                  onClick={() => navigate("/partners")}
-                >
-                  Ver comercios aliados <ArrowRightIcon className="h-5 w-5 ml-2" />
-                </Button>
-                <Button 
-                  className="w-full text-base py-6 border-white/50 bg-white/10 text-white hover:bg-white/20"
-                  variant="outline"
-                  onClick={() => navigate("/loans")}
-                >
-                  Ver mis préstamos
-                </Button>
-              </div>
             </CardContent>
           </Card>
+          <div className="space-y-3 mt-2">
+            <Button 
+              className="w-full shadow-sm text-base py-6 bg-primary text-primary-foreground hover:bg-primary/90"
+              variant="secondary"
+              onClick={() => navigate("/partners")}
+            >
+              Ver comercios aliados <ArrowRightIcon className="h-5 w-5 ml-2" />
+            </Button>
+            <Button 
+              className="w-full text-base py-6 border border-primary/60 bg-primary/10 text-primary hover:bg-primary/15"
+              variant="outline"
+              onClick={() => navigate("/loans")}
+            >
+              Ver mis préstamos
+            </Button>
+          </div>
 
           <div className="grid grid-cols-1">
             <Card className="bg-accent border-0 rounded-xl">
