@@ -4,7 +4,7 @@ import AuthForm from "../components/AuthForm";
 import CreditBureauConsent from "../components/CreditBureauConsent";
 import Dashboard from "../components/Dashboard";
 import Footer from "../components/Footer";
-import OnboardingFlow, { OnboardingData } from "../components/OnboardingFlow";
+import OnboardingFlow from "../components/OnboardingFlow";
 import CreditApplicationForm from "../components/CreditApplicationForm";
 
 // Definimos los estados de flujo posibles
@@ -16,7 +16,7 @@ export default function Home() {
     username: "",
     isNewUser: false
   });
-  const [onboardingData, setOnboardingData] = useState<OnboardingData | null>(null);
+  const [onboardingData, setOnboardingData] = useState<null>(null);
   const [, setLocation] = useLocation();
 
   // Manejar inicio de sesión
@@ -31,9 +31,8 @@ export default function Home() {
   };
   
   // Manejar completado del onboarding
-  const handleOnboardingComplete = (data: OnboardingData) => {
-    setOnboardingData(data);
-    setUserData({ username: data.fullName, isNewUser: true });
+  const handleOnboardingComplete = () => {
+    setOnboardingData(null);
     setFlowState("consent");
   };
   

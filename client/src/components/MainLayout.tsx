@@ -11,7 +11,7 @@ export default function MainLayout() {
   const renderSection = () => {
     switch (activeSection) {
       case "inicio":
-        return <HomeSection setSection={setActiveSection} />;
+        return <HomeSection />;
       case "prestamos":
         return <LoansSection />;
       case "perfil":
@@ -19,7 +19,7 @@ export default function MainLayout() {
       case "ajustes":
         return <SettingsSection />;
       default:
-        return <HomeSection setSection={setActiveSection} />;
+        return <HomeSection />;
     }
   };
 
