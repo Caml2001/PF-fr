@@ -37,6 +37,14 @@ const RedirectToRegisterAccount = () => {
   return <Redirect to="/register/account" />;
 };
 
+// Componente para redirigir a PDFs externos
+const PDFRedirect = ({ url }: { url: string }) => {
+  React.useEffect(() => {
+    window.location.href = url;
+  }, [url]);
+  return null;
+};
+
 // Spinner Component
 const Spinner = () => (
   <svg 
@@ -504,6 +512,12 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Switch>
+          <Route path="/privacy">
+            <PDFRedirect url="/documents/AvPrSaltoPay.pdf" />
+          </Route>
+          <Route path="/terms">
+            <PDFRedirect url="/documents/TCsSaltoPay.pdf" />
+          </Route>
           <Route path="/login">
             {() => (
               <PageContainer>
@@ -556,6 +570,12 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Switch>
+          <Route path="/privacy">
+            <PDFRedirect url="/documents/AvPrSaltoPay.pdf" />
+          </Route>
+          <Route path="/terms">
+            <PDFRedirect url="/documents/TCsSaltoPay.pdf" />
+          </Route>
           <Route path="/account/review">
             <IneReviewStatus onGoHome={() => navigate('/home')} />
           </Route>
@@ -573,6 +593,12 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Switch>
+          <Route path="/privacy">
+            <PDFRedirect url="/documents/AvPrSaltoPay.pdf" />
+          </Route>
+          <Route path="/terms">
+            <PDFRedirect url="/documents/TCsSaltoPay.pdf" />
+          </Route>
           <Route path="/register">
             {() => <RedirectToRegisterAccount />}
           </Route>
@@ -604,6 +630,12 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         <main className="flex-1 pb-16">
           <Switch>
+            <Route path="/privacy">
+              <PDFRedirect url="/documents/AvPrSaltoPay.pdf" />
+            </Route>
+            <Route path="/terms">
+              <PDFRedirect url="/documents/TCsSaltoPay.pdf" />
+            </Route>
             <Route path="/home">
               <HomeSection />
             </Route>

@@ -84,7 +84,7 @@ export const clearAmplitudeUser = (): void => {
       return;
     }
 
-    amplitude.setUserId(null);
+    amplitude.setUserId(undefined);
     console.log('Amplitude userId cleared');
   } catch (error) {
     console.error('Error clearing Amplitude user:', error);

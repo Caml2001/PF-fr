@@ -177,7 +177,8 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
     if (loan.scheduleItems && loan.scheduleItems.length > 0) {
       const nextItem = loan.scheduleItems.find(item => !item.paid && item.status !== 'paid');
       if (nextItem) {
-        return nextItem.total ?? Math.max((nextItem.totalDue as any) ?? 0, 0);
+        const remaining = nextItem.remainingBalance ?? Math.max((nextItem.total ?? 0) - (nextItem.totalPaid ?? 0), 0);
+        return remaining || nextItem.total || 0;
       }
     }
     const nextPending = loan.payments?.find(p => p.status === 'pending');

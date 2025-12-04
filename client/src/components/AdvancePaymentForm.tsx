@@ -276,10 +276,6 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
 
   // Renderizar la vista de éxito
   const renderSuccess = () => {
-    if (selectedMethod === 'transfer') {
-      return null;
-    }
-
     return (
       <div className="text-center py-6">
         <div className="bg-primary/10 h-20 w-20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -297,22 +293,9 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
               <div className="flex items-start">
                 <InfoIcon className="h-5 w-5 text-primary mr-2 mt-0.5 flex-shrink-0" />
                 <div>
-                  {selectedMethod === 'transfer' ? (
-                    <>
-                      <h4 className="font-medium text-sm">Datos para transferencia</h4>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Banco: BBVA<br />
-                        Cuenta: 012 3456 7890 1234<br />
-                        CLABE: 01234567890123456<br />
-                        A nombre de: PrestaFirme S.A. de C.V.<br />
-                    Envía tu comprobante a <span className="font-semibold text-foreground">alejandro@saltopay.com</span> o al WhatsApp <span className="font-semibold text-foreground">449 387 6463</span> para acelerar la aplicación.
+                  <p className="text-sm">
+                    Tu pago con tarjeta será procesado inmediatamente.
                   </p>
-                    </>
-                  ) : (
-                    <p className="text-sm">
-                      Tu pago con tarjeta será procesado inmediatamente.
-                    </p>
-                  )}
                 </div>
               </div>
             </CardContent>

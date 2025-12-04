@@ -431,9 +431,12 @@ export default function OnboardingFlow({ onComplete, onCancel, initialStep }: On
 
   const renderStepContent = () => {
     if (currentStep === "review") {
+      if (!reviewProfile) {
+        return <div className="p-4 text-sm text-muted-foreground">Cargando perfil...</div>;
+      }
       return (
         <ProfileReview
-          profile={reviewProfile || {}}
+          profile={reviewProfile}
           onComplete={() => goToNextStep()}
         />
       );
