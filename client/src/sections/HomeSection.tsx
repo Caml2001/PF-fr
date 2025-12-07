@@ -83,10 +83,6 @@ export default function HomeSection() {
                     Actualizado automáticamente cada 5 min
                   </p>
                 </div>
-                <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
-                  <StarIcon className="h-4 w-4 mr-1.5" />
-                  Aprobado
-                </Badge>
               </div>
 
               <div className="space-y-2">
