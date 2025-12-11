@@ -64,6 +64,10 @@ const ResetPasswordForm: React.FC = () => {
 
     try {
       await resetPassword(tokens.accessToken, tokens.refreshToken, data.newPassword);
+      // Limpiar tokens del localStorage ya que fueron revocados por el backend
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('onboardingUserComplete');
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Error al actualizar la contrasena');

@@ -666,6 +666,9 @@ export default function App() {
             <Route path="/loans/:loanId/advance-payment/continue">
               {(params) => <LoansSection loanId={params.loanId} view="advance-payment-continue" />}
             </Route>
+            <Route path="/reset-password">
+              {() => <ResetPasswordForm />}
+            </Route>
             <Route path="/profile/change-password">
               <ChangePasswordForm />
             </Route>
