@@ -7,6 +7,7 @@ import AuthForm from "./components/AuthForm";
 import OnboardingFlow from "./components/OnboardingFlow";
 import ForgotPasswordForm from "./components/ForgotPasswordForm";
 import ResetPasswordForm from "./components/ResetPasswordForm";
+import ChangePasswordForm from "./components/ChangePasswordForm";
 import PartnersSection from "./sections/PartnersSection";
 import IneReviewStatus from "./components/IneReviewStatus";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
@@ -664,6 +665,9 @@ export default function App() {
             </Route>
             <Route path="/loans/:loanId/advance-payment/continue">
               {(params) => <LoansSection loanId={params.loanId} view="advance-payment-continue" />}
+            </Route>
+            <Route path="/profile/change-password">
+              <ChangePasswordForm />
             </Route>
             <Route path="/profile">
               <ProfileSection />

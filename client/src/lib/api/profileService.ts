@@ -6,6 +6,7 @@ import apiClient from './axios';
 export interface ProfileData {
   id: string;
   userId: string;
+  email?: string;
   phoneNumber?: string;
   phoneVerified?: boolean;
   onboardingStatus: string;
