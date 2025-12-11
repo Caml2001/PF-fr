@@ -170,13 +170,61 @@ export const refreshAccessToken = async (): Promise<string | null> => {
   }
 };
 
-// Optional: Add logout function if there's a backend endpoint for it
-// export const logout = async (): Promise<void> => {
-//   try {
-//     await apiClient.post('/auth/signout'); 
-//   } catch (error: any) {
-//     console.error("Logout API error:", error.response?.data || error.message);
-//     // Decide if logout failure should prevent frontend logout
-//     throw new Error(error.response?.data?.error || 'Logout failed');
-//   }
-// };
+// ==========================================
+// FORGOT PASSWORD / RESET PASSWORD
+// ==========================================
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ResetPasswordResponse {
+  success: boolean;
+  message: string;
+}
+
+/**
+ * Solicita un email de reset de contraseña
+ */
+export const forgotPassword = async (email: string): Promise<ForgotPasswordResponse> => {
+  try {
+    const response = await apiClient.post<ForgotPasswordResponse>('/auth/forgot-password', { email });
+    return response.data;
+  } catch (error: any) {
+    console.error("Forgot password API error:", error.response?.data || error.message);
+
+    // Manejar rate limiting
+    if (error.response?.status === 429) {
+      throw new Error('Por favor espera antes de solicitar otro email de recuperación');
+    }
+
+    throw new Error(error.response?.data?.error || 'Error al enviar el email de recuperación');
+  }
+};
+
+/**
+ * Resetea la contraseña usando los tokens del email de reset
+ */
+export const resetPassword = async (
+  accessToken: string,
+  refreshToken: string,
+  newPassword: string
+): Promise<ResetPasswordResponse> => {
+  try {
+    const response = await apiClient.post<ResetPasswordResponse>('/auth/reset-password', {
+      accessToken,
+      refreshToken,
+      newPassword,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Reset password API error:", error.response?.data || error.message);
+
+    if (error.response?.status === 401) {
+      throw new Error('El enlace de recuperación ha expirado. Por favor solicita uno nuevo.');
+    }
+
+    throw new Error(error.response?.data?.error || 'Error al actualizar la contraseña');
+  }
+};

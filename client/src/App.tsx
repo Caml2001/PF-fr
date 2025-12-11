@@ -5,6 +5,8 @@ import ProfileSection from "./sections/ProfileSection";
 import SettingsSection from "./sections/SettingsSection";
 import AuthForm from "./components/AuthForm";
 import OnboardingFlow from "./components/OnboardingFlow";
+import ForgotPasswordForm from "./components/ForgotPasswordForm";
+import ResetPasswordForm from "./components/ResetPasswordForm";
 import PartnersSection from "./sections/PartnersSection";
 import IneReviewStatus from "./components/IneReviewStatus";
 import { HomeIcon, DollarSignIcon, UserIcon, SettingsIcon } from "lucide-react";
@@ -128,7 +130,7 @@ export default function App() {
   ];
 
   // Lista completa de rutas públicas
-  const publicRoutes = ['/login', ...onboardingRoutes];
+  const publicRoutes = ['/login', '/forgot-password', '/reset-password', ...onboardingRoutes];
 
   // Función memoizada para verificar el estado de onboarding
   const checkOnboardingStatus = useCallback(async (options = { preventRedirects: false }) => {
@@ -522,13 +524,19 @@ export default function App() {
             {() => (
               <PageContainer>
                 <ContentContainer>
-                  <AuthForm 
-                    onLogin={handleLogin} 
-                    onStartSignup={handleStartSignup} 
+                  <AuthForm
+                    onLogin={handleLogin}
+                    onStartSignup={handleStartSignup}
                   />
                 </ContentContainer>
               </PageContainer>
             )}
+          </Route>
+          <Route path="/forgot-password">
+            {() => <ForgotPasswordForm />}
+          </Route>
+          <Route path="/reset-password">
+            {() => <ResetPasswordForm />}
           </Route>
           <Route path="/register">
             {() => <RedirectToRegisterAccount />}
