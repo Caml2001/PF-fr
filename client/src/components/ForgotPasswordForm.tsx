@@ -53,8 +53,11 @@ const ForgotPasswordForm: React.FC = () => {
                   <CheckCircle2 className="h-16 w-16 text-green-500" />
                 </div>
                 <h2 className="text-xl font-bold mb-2">Revisa tu correo</h2>
-                <p className="text-muted-foreground mb-6">
+                <p className="text-muted-foreground mb-4">
                   Si existe una cuenta con ese correo, recibiras un enlace para restablecer tu contrasena.
+                </p>
+                <p className="text-sm text-muted-foreground mb-6 bg-muted/50 p-3 rounded-lg">
+                  No olvides revisar tu carpeta de spam o correo no deseado.
                 </p>
                 <Button
                   className="w-full py-6 text-base rounded-xl"

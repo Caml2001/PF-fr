@@ -3,6 +3,8 @@ import { Card, CardContent } from "./ui/card";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 import { ProfileData as ApiProfileData } from '../lib/api/profileService';
+import { useLocation } from 'wouter';
+import { ChevronRight } from 'lucide-react';
 
 export type ProfileData = ApiProfileData;
 
@@ -42,6 +44,7 @@ const formatAddress = (data: ProfileData) => {
 };
 
 export default function ProfileReview({ profile, onComplete: _onComplete }: ProfileReviewProps) {
+  const [, navigate] = useLocation();
   const fullName = useMemo(() => formatFullName(profile), [profile]);
   const address = useMemo(() => formatAddress(profile), [profile]);
   const initials = useMemo(() => {
@@ -127,6 +130,21 @@ export default function ProfileReview({ profile, onComplete: _onComplete }: Prof
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card
+        className="cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={() => navigate('/profile/change-password')}
+      >
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-medium">Cambiar contraseña</h3>
+            <p className="text-sm text-muted-foreground">
+              Actualiza tu contraseña de acceso
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
         </CardContent>
       </Card>
     </div>
