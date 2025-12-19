@@ -5,30 +5,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import { InfoIcon, CheckCircleIcon, CopyIcon, CheckIcon } from "lucide-react";
+import { InfoIcon, CheckCircleIcon, CopyIcon, CheckIcon, AlertCircleIcon } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { ContentContainer, PageContainer, PageHeader, SectionContainer } from "@/components/Layout";
-import { payLoanWithCard } from "@/lib/api/loanService";
+import { payLoanWithCard, PaymentOption, PaymentType, LoanSummary, StripePaymentResponse } from "@/lib/api/loanService";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 
 interface AdvancePaymentFormProps {
   loanId: string;
-  pendingAmount: number;
-  nextPaymentAmount?: number;
+  paymentOptions: PaymentOption[];
+  summary?: LoanSummary;
   onBack: () => void;
   startInTransferReview?: boolean;
+  onPaymentSuccess?: (response: StripePaymentResponse) => void;
 }
 
-export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentAmount, onBack, startInTransferReview }: AdvancePaymentFormProps) {
+export default function AdvancePaymentForm({
+  loanId,
+  paymentOptions,
+  summary,
+  onBack,
+  startInTransferReview,
+  onPaymentSuccess
+}: AdvancePaymentFormProps) {
   const [, navigate] = useLocation();
-  const [paymentOption, setPaymentOption] = useState<'nextPayment' | 'customAmount' | 'fullAmount'>('nextPayment');
+
+  // Encontrar la primera opción disponible como default
+  const getDefaultOption = (): PaymentType => {
+    // Prioridad: next_payment > overdue > full > custom
+    const priority: PaymentType[] = ['next_payment', 'overdue', 'full', 'custom'];
+    for (const type of priority) {
+      const option = paymentOptions.find(o => o.type === type && o.available);
+      if (option) return type;
+    }
+    return 'custom';
+  };
+
+  const [selectedPaymentType, setSelectedPaymentType] = useState<PaymentType>(getDefaultOption());
   const [customAmount, setCustomAmount] = useState<string>("");
   const [step, setStep] = useState<'form' | 'confirmation' | 'success' | 'transfer-info'>(
     startInTransferReview ? 'transfer-info' : 'form'
   );
   const [selectedMethod, setSelectedMethod] = useState<'transfer' | 'card'>(startInTransferReview ? 'transfer' : 'transfer');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [paymentResult, setPaymentResult] = useState<StripePaymentResponse | null>(null);
 
   useEffect(() => {
     if (startInTransferReview) {
@@ -36,6 +57,14 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
       setSelectedMethod('transfer');
     }
   }, [startInTransferReview]);
+
+  // Actualizar opción seleccionada cuando lleguen las paymentOptions
+  useEffect(() => {
+    if (paymentOptions && paymentOptions.length > 0) {
+      const defaultOption = getDefaultOption();
+      setSelectedPaymentType(defaultOption);
+    }
+  }, [paymentOptions]);
 
   const handleHeaderBack = () => {
     if (step === 'transfer-info') {
@@ -47,13 +76,19 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
   };
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // Cálculo de montos
-  const nextPaymentToUse = Math.min(
-    nextPaymentAmount && nextPaymentAmount > 0 ? nextPaymentAmount : pendingAmount,
-    pendingAmount
-  );
-  const fullAmount = pendingAmount;
+
+  // Obtener opciones del backend
+  const getOptionByType = (type: PaymentType): PaymentOption | undefined => {
+    return paymentOptions.find(o => o.type === type);
+  };
+
+  const fullOption = getOptionByType('full');
+  const overdueOption = getOptionByType('overdue');
+  const nextPaymentOption = getOptionByType('next_payment');
+  const customOption = getOptionByType('custom');
+
+  // Calcular el monto total pendiente (para transferencia)
+  const totalPendingMinor = summary?.balance?.totalMinor || 0;
   const concept = loanId.slice(0, 8);
 
   const handleCopy = (label: string, value: string) => {
@@ -61,27 +96,45 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     setCopiedField(label);
     setTimeout(() => setCopiedField(null), 1500);
   };
-  
-  // Calcular la cantidad a pagar basada en la opción seleccionada
-  const getPaymentAmount = () => {
-    switch (paymentOption) {
-      case 'nextPayment':
-        return nextPaymentToUse;
-      case 'customAmount':
-        return customAmount ? parseFloat(customAmount) : 0;
-      case 'fullAmount':
-        return fullAmount;
-      default:
-        return 0;
+
+  // Obtener el monto a pagar basado en la opción seleccionada (en pesos, no centavos)
+  const getPaymentAmount = (): number => {
+    const option = getOptionByType(selectedPaymentType);
+    if (selectedPaymentType === 'custom') {
+      return customAmount ? parseFloat(customAmount) : 0;
     }
+    return option ? option.amountMinor / 100 : 0;
   };
 
-  // Manejar el envío del formulario (solo tarjeta disponible)
+  // Obtener el monto en centavos para enviar al backend
+  const getPaymentAmountMinor = (): number => {
+    if (selectedPaymentType === 'custom') {
+      return customAmount ? Math.round(parseFloat(customAmount) * 100) : 0;
+    }
+    const option = getOptionByType(selectedPaymentType);
+    return option?.amountMinor || 0;
+  };
+
+  // Verificar si la opción seleccionada está disponible
+  const isSelectedOptionAvailable = (): boolean => {
+    if (selectedPaymentType === 'custom') {
+      return customOption?.available !== false && getPaymentAmountMinor() > 0;
+    }
+    const option = getOptionByType(selectedPaymentType);
+    return option?.available === true;
+  };
+
+  // Manejar el envío del formulario
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const amount = getPaymentAmount();
-    if (amount <= 0) {
+
+    if (!isSelectedOptionAvailable()) {
+      setErrorMessage('Esta opción de pago no está disponible');
+      return;
+    }
+
+    const amountMinor = getPaymentAmountMinor();
+    if (amountMinor <= 0) {
       setErrorMessage('El monto debe ser mayor a 0');
       return;
     }
@@ -96,8 +149,16 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     try {
       setIsProcessing(true);
       setErrorMessage(null);
-      const amountMinor = Math.round(amount * 100); // Convertir a centavos
-      await payLoanWithCard(loanId, amountMinor);
+
+      // Enviar type al backend, y amountMinor solo si es custom
+      const result = await payLoanWithCard(
+        loanId,
+        selectedPaymentType,
+        selectedPaymentType === 'custom' ? amountMinor : undefined
+      );
+
+      setPaymentResult(result);
+      onPaymentSuccess?.(result);
       setStep('success');
     } catch (err: any) {
       const apiMessage = err?.response?.data?.message;
@@ -112,69 +173,118 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
     setStep('success');
   };
 
+  // Renderizar una opción de pago
+  const renderPaymentOption = (option: PaymentOption) => {
+    const isSelected = selectedPaymentType === option.type;
+    const isDisabled = !option.available;
+
+    return (
+      <Card
+        key={option.type}
+        className={`border ${isSelected ? 'border-primary' : 'border-border'} ${isDisabled ? 'opacity-60' : ''}`}
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start">
+            <RadioGroupItem
+              value={option.type}
+              id={option.type}
+              className="mt-1"
+              disabled={isDisabled}
+            />
+            <div className="ml-3 flex-1">
+              <div className="flex items-center justify-between">
+                <Label htmlFor={option.type} className={`font-medium ${isDisabled ? 'text-muted-foreground' : ''}`}>
+                  {option.label}
+                </Label>
+                {option.type !== 'custom' && (
+                  <span className={`font-medium ${isDisabled ? 'text-muted-foreground' : ''}`}>
+                    {formatCurrency(option.amountMinor / 100)}
+                  </span>
+                )}
+              </div>
+              <p className="text-muted-foreground text-xs">{option.description}</p>
+              {isDisabled && option.unavailableReason && (
+                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                  <AlertCircleIcon className="h-3 w-3" />
+                  {option.unavailableReason}
+                </p>
+              )}
+              {option.type === 'custom' && isSelected && (
+                <div className="mt-2">
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={customAmount}
+                    onChange={(e) => setCustomAmount(e.target.value)}
+                    className="text-right"
+                    min={1}
+                    max={totalPendingMinor / 100}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   // Renderizar la vista de formulario
   const renderForm = () => {
+    // Si no hay opciones de pago, mostrar loading
+    if (!paymentOptions || paymentOptions.length === 0) {
+      return (
+        <div className="space-y-4">
+          <div className="animate-pulse">
+            <div className="h-4 bg-muted rounded w-1/3 mb-3"></div>
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Card key={i} className="border">
+                  <CardContent className="p-3">
+                    <div className="h-4 bg-muted rounded w-1/2 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-3/4"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Ordenar las opciones: overdue primero si existe, luego next_payment, full, custom
+    const orderedOptions = [...paymentOptions].sort((a, b) => {
+      const order: Record<PaymentType, number> = { overdue: 0, next_payment: 1, full: 2, custom: 3 };
+      return (order[a.type] ?? 4) - (order[b.type] ?? 4);
+    });
+
     return (
       <form onSubmit={handleSubmit}>
+        {/* Mostrar alerta si hay mora */}
+        {summary?.overdueInfo?.isOverdue && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <AlertCircleIcon className="h-5 w-5 text-red-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-800">
+                  Tienes {summary.overdueInfo.dpd} días de atraso
+                </p>
+                <p className="text-xs text-red-700">
+                  Monto vencido: {formatCurrency(summary.overdueInfo.totalOverdueMinor / 100)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <SectionContainer>
           <h3 className="text-lg font-medium mb-3">¿Cuánto deseas pagar?</h3>
-          <RadioGroup value={paymentOption} onValueChange={(value) => setPaymentOption(value as any)}>
+          <RadioGroup
+            value={selectedPaymentType}
+            onValueChange={(value) => setSelectedPaymentType(value as PaymentType)}
+          >
             <div className="space-y-3">
-              <Card className={`border ${paymentOption === 'nextPayment' ? 'border-primary' : 'border-border'}`}>
-                <CardContent className="p-3">
-                  <div className="flex items-start">
-                    <RadioGroupItem value="nextPayment" id="nextPayment" className="mt-1" />
-                <div className="ml-3">
-                  <Label htmlFor="nextPayment" className="font-medium">
-                    Próximo pago
-                  </Label>
-                  <p className="text-muted-foreground text-xs">Pagar solo el siguiente pago programado</p>
-                      <p className="font-medium mt-1">{formatCurrency(nextPaymentToUse)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className={`border ${paymentOption === 'customAmount' ? 'border-primary' : 'border-border'}`}>
-                <CardContent className="p-3">
-              <div className="flex items-start">
-                <RadioGroupItem value="customAmount" id="customAmount" className="mt-1" />
-                <div className="ml-3 w-full">
-                      <Label htmlFor="customAmount" className="font-medium">
-                        Cantidad personalizada
-                      </Label>
-                      <p className="text-muted-foreground text-xs">Ingresa el monto que deseas pagar</p>
-                      <div className="mt-2">
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={customAmount}
-                          onChange={(e) => setCustomAmount(e.target.value)}
-                          className="text-right"
-                          min={1}
-                          max={fullAmount}
-                          disabled={paymentOption !== 'customAmount'}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className={`border ${paymentOption === 'fullAmount' ? 'border-primary' : 'border-border'}`}>
-                <CardContent className="p-3">
-                  <div className="flex items-start">
-                    <RadioGroupItem value="fullAmount" id="fullAmount" className="mt-1" />
-                    <div className="ml-3">
-                      <Label htmlFor="fullAmount" className="font-medium">
-                        Préstamo completo
-                      </Label>
-                      <p className="text-muted-foreground text-xs">Liquidar todo el préstamo pendiente</p>
-                      <p className="font-medium mt-1">{formatCurrency(fullAmount)}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {orderedOptions.map(renderPaymentOption)}
             </div>
           </RadioGroup>
         </SectionContainer>
@@ -218,10 +328,10 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
           <p className="text-sm text-red-600 mb-3">{errorMessage}</p>
         )}
 
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={isProcessing || (paymentOption === 'customAmount' && (!customAmount || parseFloat(customAmount) <= 0))}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={isProcessing || !isSelectedOptionAvailable()}
         >
           {isProcessing ? 'Procesando...' : selectedMethod === 'transfer' ? 'Continuar con transferencia' : 'Continuar'}
         </Button>
@@ -333,7 +443,7 @@ export default function AdvancePaymentForm({ loanId, pendingAmount, nextPaymentA
                   { label: 'Banco', value: 'BBVA', mono: false },
                   { label: 'CLABE', value: '646680177602733217', mono: false },
                   { label: 'Beneficiario', value: 'SaltoPay', mono: false },
-                  { label: 'Monto a pagar', value: formatCurrency(nextPaymentToUse || fullAmount), mono: false },
+                  { label: 'Monto a pagar', value: formatCurrency(getPaymentAmount()), mono: false },
                   { label: 'Concepto', value: concept, mono: false }
                 ].map((item) => (
                   <div key={item.label} className="col-span-2 sm:col-span-1">

@@ -18,6 +18,10 @@ export interface ApiLoan {
   startDate: string;
   expectedEndDate: string;
   payments?: ApiPayment[];
+  // Nuevos campos del backend
+  summary?: LoanSummary;
+  paymentOptions?: PaymentOption[];
+  schedule?: ApiScheduleItemV2[];
 }
 
 export interface ApiPayment {
@@ -26,6 +30,66 @@ export interface ApiPayment {
   amount: number;
   dueDate: string;
   status: string;
+}
+
+// Nuevas interfaces para el resumen del préstamo (montos en centavos)
+export interface LoanBalance {
+  principalMinor: number;
+  interestMinor: number;
+  feesMinor: number;
+  penaltiesMinor: number;
+  totalMinor: number;
+}
+
+export interface OverdueInfo {
+  isOverdue: boolean;
+  dpd: number; // Días de atraso
+  overdueAmountMinor: number;
+  penaltiesMinor: number;
+  totalOverdueMinor: number;
+}
+
+export interface NextPaymentDue {
+  date: string;
+  amountMinor: number;
+  daysUntilDue: number;
+}
+
+export interface LoanSummary {
+  balance: LoanBalance;
+  overdueInfo: OverdueInfo;
+  nextPaymentDue?: NextPaymentDue;
+}
+
+// Tipos de pago disponibles
+export type PaymentType = 'full' | 'overdue' | 'next_payment' | 'custom';
+
+export interface PaymentOption {
+  type: PaymentType;
+  label: string;
+  description: string;
+  amountMinor: number;
+  available: boolean;
+  unavailableReason?: string;
+}
+
+// Respuesta del endpoint de pago con Stripe
+export interface StripePaymentResponse {
+  success: boolean;
+  payment: {
+    id: string;
+    loanId: string;
+    type: string;
+    amount: number;
+    paymentDate: string;
+    method: string;
+  };
+  loanAfterPayment: {
+    balance: LoanBalance;
+    status: string;
+    overdueInfo: OverdueInfo;
+    nextPaymentDue?: NextPaymentDue;
+  };
 }
 
 // Interfaces para la tabla de amortización
@@ -42,17 +106,19 @@ export interface ApiScheduleItem {
 // Nueva interfaz para el formato actualizado de la tabla de amortización recibido de la API
 export interface ApiScheduleItemV2 {
   id: number;
-  loanId: string;
+  loanId?: string;
   periodIndex: number;
   dueDate: string;
+  status: 'paid' | 'partially_paid' | 'overdue' | 'current' | 'pending'; // Nuevo campo de estado
+  daysOverdue?: number; // Nuevo - solo si overdue
   principalDue: number;
   interestDue: number;
   feeDue: number;
   principalPaid: number;
   interestPaid: number;
   feePaid: number;
-  paid: boolean;
-  partiallyPaid: boolean;
+  paid?: boolean;
+  partiallyPaid?: boolean;
   totalDue: number;
   totalPaid: number;
   remainingDue: number;
@@ -88,7 +154,7 @@ export interface ScheduleItem {
 export interface Loan {
   id: string;
   amount: number;
-  status: 'active' | 'completed' | 'pending';
+  status: 'active' | 'completed' | 'pending' | 'past_due';
   startDate: string;
   endDate: string;
   term: number;
@@ -97,6 +163,9 @@ export interface Loan {
   payments: Payment[];
   commissionAmount: number;
   scheduleItems?: ScheduleItem[];
+  // Nuevos campos del backend
+  summary?: LoanSummary;
+  paymentOptions?: PaymentOption[];
   details?: {
     productName?: string;
     accountNumber?: string;
@@ -117,10 +186,12 @@ const formatDateToSpanish = (dateString: string): string => {
 };
 
 // Función para mapear el estado de un préstamo
-const mapLoanStatus = (apiStatus: string): 'active' | 'completed' | 'pending' => {
+const mapLoanStatus = (apiStatus: string): 'active' | 'completed' | 'pending' | 'past_due' => {
   switch (apiStatus) {
     case 'ACTIVE':
       return 'active';
+    case 'PAST_DUE':
+      return 'past_due';
     case 'COMPLETED':
     case 'PAID_OFF':
     case 'PAID':
@@ -210,7 +281,10 @@ const transformApiLoanToLoan = (apiLoan: ApiLoan): Loan => {
       date: nextPayment.date,
       amount: nextPayment.amount,
       status: 'pending'
-    } : undefined
+    } : undefined,
+    // Nuevos campos del backend
+    summary: apiLoan.summary,
+    paymentOptions: apiLoan.paymentOptions
   };
 };
 
@@ -254,23 +328,18 @@ const derivePaymentsFromSchedule = (scheduleItems: ScheduleItem[]): Payment[] =>
 // Obtener un préstamo específico por ID con detalles completos
 export const getLoanById = async (loanId: string): Promise<Loan | null> => {
   try {
-    // Get loan basic data and schedule in parallel to reduce API calls
-    const [loanResponse, scheduleResponse] = await Promise.all([
-      apiClient.get(`/api/loans/${loanId}`),
-      apiClient.get(`/api/loans/${loanId}/schedule`).catch(err => {
-        console.warn(`Error fetching loan schedule: ${err.message}`);
-        return { data: [] };
-      })
-    ]);
-
+    // El backend ahora incluye schedule, summary y paymentOptions en la respuesta
+    const loanResponse = await apiClient.get(`/api/loans/${loanId}`);
     const apiLoan: ApiLoan = loanResponse.data;
     const loan = transformApiLoanToLoan(apiLoan);
-    const scheduleData = scheduleResponse.data;
 
     // Debug log only in development
     if (process.env.NODE_ENV === 'development') {
-      console.log('Datos de tabla de pagos recibidos:', scheduleData);
+      console.log('Datos del préstamo recibidos:', apiLoan);
     }
+
+    // Usar schedule que viene directamente del backend si está disponible
+    const scheduleData = apiLoan.schedule || [];
 
     // Detectar qué tipo de datos estamos recibiendo
     if (Array.isArray(scheduleData) && scheduleData.length > 0) {
@@ -418,12 +487,23 @@ export const makeAdvancePayment = async (loanId: string, amount: number): Promis
   }
 };
 
-// Procesar pago con tarjeta usando Stripe (monto en centavos)
-export const payLoanWithCard = async (loanId: string, amountMinor: number) => {
+// Procesar pago con tarjeta usando Stripe
+// type: 'full' | 'overdue' | 'next_payment' | 'custom'
+// amountMinor: solo requerido si type = 'custom' (monto en centavos)
+export const payLoanWithCard = async (
+  loanId: string,
+  type: PaymentType,
+  amountMinor?: number
+): Promise<StripePaymentResponse> => {
   try {
-    const response = await apiClient.post(`/api/loans/${loanId}/payments/stripe`, {
-      amountMinor
-    });
+    const payload: { type: PaymentType; amountMinor?: number } = { type };
+
+    // Solo incluir amountMinor si es un pago personalizado
+    if (type === 'custom' && amountMinor !== undefined) {
+      payload.amountMinor = amountMinor;
+    }
+
+    const response = await apiClient.post(`/api/loans/${loanId}/payments/stripe`, payload);
     return response.data;
   } catch (error) {
     console.error(`Error al procesar pago con tarjeta para préstamo #${loanId}:`, error);
