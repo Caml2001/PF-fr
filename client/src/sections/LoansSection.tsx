@@ -37,6 +37,13 @@ const LoanStatusBadge = ({ status }: { status: string }) => {
           Activo
         </Badge>
       );
+    case 'past_due':
+      return (
+        <Badge variant="destructive">
+          <AlertCircleIcon className="h-3 w-3 mr-1" />
+          Vencido
+        </Badge>
+      );
     case 'completed':
       return (
         <Badge variant="secondary">
@@ -187,27 +194,35 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
 
   // Si estamos mostrando el formulario de adelanto de pago
   if (view === 'advance-payment' && selectedLoan) {
-    const pendingAmount = calculatePendingAmount(selectedLoan);
-    const nextPaymentAmount = getNextPaymentAmount(selectedLoan);
+    // Usar paymentOptions del backend si están disponibles
+    const paymentOptions = selectedLoan.paymentOptions || [];
+
     return (
       <AdvancePaymentForm
         loanId={selectedLoan.id}
-        pendingAmount={pendingAmount}
-        nextPaymentAmount={nextPaymentAmount}
+        paymentOptions={paymentOptions}
+        summary={selectedLoan.summary}
         onBack={handleBack}
+        onPaymentSuccess={() => {
+          // Refrescar datos del préstamo después del pago
+          refreshLoans(false);
+        }}
       />
     );
   }
   if (view === 'advance-payment-continue' && selectedLoan) {
-    const pendingAmount = calculatePendingAmount(selectedLoan);
-    const nextPaymentAmount = getNextPaymentAmount(selectedLoan);
+    const paymentOptions = selectedLoan.paymentOptions || [];
+
     return (
       <AdvancePaymentForm
         loanId={selectedLoan.id}
-        pendingAmount={pendingAmount}
-        nextPaymentAmount={nextPaymentAmount}
+        paymentOptions={paymentOptions}
+        summary={selectedLoan.summary}
         onBack={handleBack}
         startInTransferReview
+        onPaymentSuccess={() => {
+          refreshLoans(false);
+        }}
       />
     );
   }
@@ -311,11 +326,13 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                 >
                   <CardContent className="p-0">
                     <div className={`p-4 ${
-                      loan.status === 'active' 
-                        ? 'bg-primary/10' 
-                        : loan.status === 'pending' 
-                          ? 'bg-amber-50' 
-                          : 'bg-muted/50'
+                      loan.status === 'active'
+                        ? 'bg-primary/10'
+                        : loan.status === 'past_due'
+                          ? 'bg-red-50'
+                          : loan.status === 'pending'
+                            ? 'bg-amber-50'
+                            : 'bg-muted/50'
                     }`}>
                       <div className="flex justify-between items-center">
                         <div>
@@ -339,7 +356,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                         </div>
                       </div>
                       
-                      {loan.status === 'active' && loan.nextPayment && (
+                      {(loan.status === 'active' || loan.status === 'past_due') && loan.nextPayment && (
                         <div className="bg-accent rounded-lg p-3 flex justify-between items-center">
                           <div>
                             <span className="text-xs text-muted-foreground">Próximo pago</span>
@@ -405,11 +422,13 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
         <SectionContainer>
           <Card className="overflow-hidden">
             <div className={`p-4 ${
-              selectedLoan.status === 'active' 
-                ? 'bg-primary/10' 
-                : selectedLoan.status === 'pending' 
-                  ? 'bg-amber-50' 
-                  : 'bg-muted/50'
+              selectedLoan.status === 'active'
+                ? 'bg-primary/10'
+                : selectedLoan.status === 'past_due'
+                  ? 'bg-red-50'
+                  : selectedLoan.status === 'pending'
+                    ? 'bg-amber-50'
+                    : 'bg-muted/50'
             }`}>
               <div className="flex justify-between items-center">
                 <div>
@@ -437,7 +456,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                 </div>
               </div>
               
-              {selectedLoan.status === 'active' && selectedLoan.nextPayment && (
+              {(selectedLoan.status === 'active' || selectedLoan.status === 'past_due') && selectedLoan.nextPayment && (
                 <div className="bg-accent rounded-lg p-3 mb-4">
                   <p className="text-xs text-muted-foreground">Próximo pago</p>
                   <div className="flex justify-between items-center">
@@ -485,12 +504,12 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
                   <ChevronRightIcon className="h-4 w-4" />
                 </Button>
                 
-                {selectedLoan.status === 'active' && (
-                  <Button 
+                {(selectedLoan.status === 'active' || selectedLoan.status === 'past_due') && (
+                  <Button
                     className="w-full justify-between"
                     onClick={handleAdvancePayment}
                   >
-                    <span>Adelantar pago</span>
+                    <span>{selectedLoan.status === 'past_due' ? 'Realizar pago' : 'Adelantar pago'}</span>
                     <ArrowRightIcon className="h-4 w-4" />
                   </Button>
                 )}
@@ -619,7 +638,7 @@ export default function LoansSection({ loanId, view }: LoansSectionProps = {}) {
           )}
         </SectionContainer>
 
-        {selectedLoan.status === 'active' && (
+        {(selectedLoan.status === 'active' || selectedLoan.status === 'past_due') && (
           <div className="mt-6">
             <Button className="w-full" onClick={handleAdvancePayment}>
               <DollarSignIcon className="h-4 w-4 mr-2" />
