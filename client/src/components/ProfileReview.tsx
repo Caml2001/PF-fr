@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 import { ProfileData as ApiProfileData } from '../lib/api/profileService';
 import { useLocation } from 'wouter';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, CreditCardIcon } from 'lucide-react';
+import ChangeCardForm from './ChangeCardForm';
 
 export type ProfileData = ApiProfileData;
 
@@ -130,6 +131,23 @@ export default function ProfileReview({ profile, onComplete: _onComplete }: Prof
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Método de pago */}
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <CreditCardIcon className="h-5 w-5 text-primary" />
+            <div>
+              <h3 className="text-base font-semibold">Método de pago</h3>
+              <p className="text-sm text-muted-foreground">
+                Tarjeta para pagos automáticos
+              </p>
+            </div>
+          </div>
+          <Separator />
+          <ChangeCardForm showDeleteOption={false} />
         </CardContent>
       </Card>
 

@@ -209,6 +209,10 @@ const mapPaymentStatus = (apiStatus: string): 'paid' | 'pending' => {
 
 // Función para transformar los datos del nuevo formato de tabla de amortización
 const transformScheduleItemV2 = (apiItem: ApiScheduleItemV2): ScheduleItem => {
+  // Derivar paid/partiallyPaid del campo status del backend
+  const isPaid = apiItem.status === 'paid' || apiItem.paid === true;
+  const isPartiallyPaid = apiItem.status === 'partially_paid' || apiItem.partiallyPaid === true;
+
   return {
     paymentNumber: apiItem.periodIndex + 1, // Ajustamos el índice para mostrar desde 1
     date: formatDateToSpanish(apiItem.dueDate),
@@ -217,11 +221,11 @@ const transformScheduleItemV2 = (apiItem: ApiScheduleItemV2): ScheduleItem => {
     interest: apiItem.interestDue || 0,
     total: apiItem.totalDue || 0,
     remainingBalance: apiItem.remainingDue || 0,
-    status: apiItem.paid ? 'paid' : 'pending',
+    status: isPaid ? 'paid' : 'pending',
     // Preservar información adicional de pagos
     totalPaid: apiItem.totalPaid || 0,
-    paid: apiItem.paid,
-    partiallyPaid: apiItem.partiallyPaid
+    paid: isPaid,
+    partiallyPaid: isPartiallyPaid
   };
 };
 
