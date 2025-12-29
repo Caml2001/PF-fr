@@ -316,7 +316,7 @@ export default function AdvancePaymentForm({
                     </Label>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Pago inmediato con tarjeta
+                    Pago inmediato con tarjeta. Si desea cambiar su tarjeta domiciliada, vaya a la sección de perfil.
                   </p>
                 </CardContent>
               </Card>
@@ -440,7 +440,7 @@ export default function AdvancePaymentForm({
             <div className="rounded-xl bg-primary/5 p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Banco', value: 'BBVA', mono: false },
+                  { label: 'Banco', value: 'STP', mono: false },
                   { label: 'CLABE', value: '646680177602733217', mono: false },
                   { label: 'Beneficiario', value: 'SaltoPay', mono: false },
                   { label: 'Monto a pagar', value: formatCurrency(getPaymentAmount()), mono: false },
