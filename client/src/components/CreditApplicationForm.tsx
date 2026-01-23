@@ -18,6 +18,7 @@ import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { Sheet } from "@silk-hq/components";
 import { getLoanProducts, LoanProduct, applyForCredit, LoanApplicationData, LoanResponse } from "../lib/api/creditService";
+import { useCreditInfo } from "../hooks/useCreditInfo";
 
 interface CreditApplicationFormProps {
   onLogout: () => void;
@@ -109,9 +110,15 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
   const [error, setError] = useState<string | null>(null);
   const [loanProducts, setLoanProducts] = useState<LoanProduct[]>([]);
   const [expressProducts, setExpressProducts] = useState<LoanProduct[]>([]);
+  const [simpleProducts, setSimpleProducts] = useState<LoanProduct[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<LoanProduct | null>(null);
+  const [productType, setProductType] = useState<'express' | 'simple'>('express');
+
+  // Obtener límite de crédito del usuario para filtrar productos
+  const { creditInfo, isLoading: isCreditLoading } = useCreditInfo();
   const [amount, setAmount] = useState(1000);
   const [paymentTerm, setPaymentTerm] = useState("7");
+  const [simpleTerm, setSimpleTerm] = useState(3); // Plazo en meses para productos simple
   const [minAmount, setMinAmount] = useState(0);
   const [maxAmount, setMaxAmount] = useState(4000);
   
@@ -121,20 +128,47 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
   
   // Cargar productos de préstamo
   useEffect(() => {
+    // Esperar a que el crédito esté cargado para filtrar correctamente
+    if (isCreditLoading) return;
+
     const fetchLoanProducts = async () => {
       try {
         setLoading(true);
         setError(null);
         const products = await getLoanProducts();
-        
-        // Filtrar productos express
-        const expressProducts = products.filter(product => product.isExpressProduct);
-        setLoanProducts(products);
-        setExpressProducts(expressProducts);
-        
-        // Seleccionar el primer producto express por defecto
-        if (expressProducts.length > 0) {
-          const defaultProduct = expressProducts.find(p => p.fixedTerm === 1) || expressProducts[0];
+
+        // Filtrar productos según el límite de crédito del usuario
+        // Solo mostrar productos donde maxAmount <= límite del usuario
+        const userLimit = creditInfo.limit || 10000; // Default 10k si no hay límite
+
+        const availableProducts = products.filter(product =>
+          product.isExpressProduct || product.maxAmount <= userLimit
+        );
+
+        // Separar productos por tipo
+        const express = availableProducts.filter(product => product.isExpressProduct);
+        const simple = availableProducts.filter(product =>
+          product.productType === 'simple' && product.ratePeriodicity === 'monthly'
+        );
+
+        setLoanProducts(availableProducts);
+        setExpressProducts(express);
+        setSimpleProducts(simple);
+
+        // Determinar qué tipo de producto mostrar por defecto
+        // Si hay productos simple disponibles (usuario con alto límite), mostrar simple
+        // Si no, mostrar express
+        if (simple.length > 0) {
+          setProductType('simple');
+          const defaultProduct = simple[0];
+          setSelectedProduct(defaultProduct);
+          setMinAmount(defaultProduct.minAmount);
+          setMaxAmount(Math.min(defaultProduct.maxAmount, userLimit));
+          setAmount(Math.min(10000, defaultProduct.maxAmount));
+          setSimpleTerm(3);
+        } else if (express.length > 0) {
+          setProductType('express');
+          const defaultProduct = express.find(p => p.fixedTerm === 1) || express[0];
           setSelectedProduct(defaultProduct);
           setMinAmount(defaultProduct.minAmount);
           setMaxAmount(defaultProduct.maxAmount);
@@ -196,19 +230,22 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
     };
     
     fetchLoanProducts();
-  }, []);
+  }, [creditInfo.limit, isCreditLoading]);
   
-  // Actualizar producto seleccionado cuando cambia el plazo
+  // Actualizar producto seleccionado cuando cambia el plazo (solo para productos express)
   useEffect(() => {
+    // Solo aplicar para productos express
+    if (productType !== 'express') return;
+
     if (expressProducts.length > 0) {
       const weeksTerm = parseInt(paymentTerm) / 7;
       const product = expressProducts.find(p => p.fixedTerm === weeksTerm);
-      
+
       if (product) {
         setSelectedProduct(product);
         setMinAmount(product.minAmount);
         setMaxAmount(product.maxAmount);
-        
+
         // Ajustar monto si excede los límites del nuevo producto
         if (amount > product.maxAmount) {
           setAmount(product.maxAmount);
@@ -217,7 +254,7 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
         }
       }
     }
-  }, [paymentTerm, expressProducts, amount]);
+  }, [paymentTerm, expressProducts, amount, productType]);
   
   // Calcular la comisión basada en el producto seleccionado
   const commission = selectedProduct ? (amount * (selectedProduct.commissionRate / 100)) : 0;
@@ -227,12 +264,18 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
   
   // Calcular la fecha límite de pago
   const calculateDeadlineDate = () => {
-    if (!paymentTerm) return "";
-    
-    const days = parseInt(paymentTerm);
     const deadline = new Date();
-    deadline.setDate(deadline.getDate() + days);
-    
+
+    if (productType === 'simple') {
+      // Para productos simple, el plazo es en meses
+      deadline.setMonth(deadline.getMonth() + simpleTerm);
+    } else {
+      // Para productos express, el plazo es en días
+      if (!paymentTerm) return "";
+      const days = parseInt(paymentTerm);
+      deadline.setDate(deadline.getDate() + days);
+    }
+
     // Formatear fecha en español
     return deadline.toLocaleDateString('es-MX', {
       day: 'numeric',
@@ -240,7 +283,7 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
       year: 'numeric'
     });
   };
-  
+
   const deadlineDate = calculateDeadlineDate();
   
   // Mapeo de términos de pago a texto descriptivo
@@ -263,19 +306,25 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
   const createOptimisticLoan = (): LoanResponse => {
     const today = new Date();
     const dueDate = new Date(today);
-    dueDate.setDate(dueDate.getDate() + parseInt(paymentTerm));
-    
+
+    // Calcular fecha de vencimiento según tipo de producto
+    if (productType === 'simple') {
+      dueDate.setMonth(dueDate.getMonth() + simpleTerm);
+    } else {
+      dueDate.setDate(dueDate.getDate() + parseInt(paymentTerm));
+    }
+
     return {
       id: "temp-" + Date.now(),
       status: "processing",
       principal: amount,
       interestRate: selectedProduct?.minRate || 0,
-      term: parseInt(paymentTerm) / 7, // Convertir días a semanas
+      term: productType === 'simple' ? simpleTerm : parseInt(paymentTerm) / 7,
       commissionAmount: commission,
       disbursedAmount: amountToReceive,
       startDate: today.toISOString(),
       dueDate: dueDate.toISOString(),
-      productName: selectedProduct?.name || "Crédito Express",
+      productName: selectedProduct?.name || "Crédito",
       createdAt: today.toISOString(),
     };
   };
@@ -286,13 +335,16 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
       setError("Por favor selecciona una cuenta para recibir el depósito");
       return;
     }
-    
+
     // Formato correcto según la API
+    // Para productos express, el term es el fixedTerm (semanas)
+    // Para productos simple mensuales, el term es el número de meses
+    const term = productType === 'simple' ? simpleTerm : selectedProduct.fixedTerm;
+
     const loanRequest: LoanApplicationData = {
       productId: selectedProduct.id,
       principal: amount,
-      // Para productos express, el term debe coincidir con el fixedTerm del producto
-      term: selectedProduct.fixedTerm // Ya está en semanas, no necesitamos convertir
+      term: term
     };
     
     try {
@@ -489,9 +541,30 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
               </div>
               
               <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Plazo de pago (días)</h3>
+                <h3 className="text-sm font-medium mb-2">
+                  {productType === 'simple' ? 'Plazo de pago (meses)' : 'Plazo de pago (días)'}
+                </h3>
                 <div className="grid grid-cols-4 gap-2">
-                  {expressProducts.length > 0 ? (
+                  {productType === 'simple' ? (
+                    // Selector de plazo para productos simple (meses)
+                    [3, 6, 9, 12].map(months => (
+                      <button
+                        key={months}
+                        className={`border rounded-lg p-2 text-center transition-all ${
+                          simpleTerm === months
+                            ? "border-primary bg-primary/5 text-primary"
+                            : "border-border"
+                        }`}
+                        onClick={() => setSimpleTerm(months)}
+                      >
+                        <div className="font-medium text-sm">{months}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {months === 1 ? 'mes' : 'meses'}
+                        </div>
+                      </button>
+                    ))
+                  ) : expressProducts.length > 0 ? (
+                    // Selector de plazo para productos express (días)
                     expressProducts
                       .sort((a, b) => (a.fixedTerm || 0) - (b.fixedTerm || 0))
                       .map(product => {
@@ -500,8 +573,8 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
                           <button
                             key={product.id}
                             className={`border rounded-lg p-2 text-center transition-all ${
-                              paymentTerm === term 
-                                ? "border-primary bg-primary/5 text-primary" 
+                              paymentTerm === term
+                                ? "border-primary bg-primary/5 text-primary"
                                 : "border-border"
                             }`}
                             onClick={() => setPaymentTerm(term)}
@@ -516,8 +589,8 @@ export default function CreditApplicationForm({ onLogout }: CreditApplicationFor
                       <button
                         key={term}
                         className={`border rounded-lg p-2 text-center transition-all ${
-                          paymentTerm === term 
-                            ? "border-primary bg-primary/5 text-primary" 
+                          paymentTerm === term
+                            ? "border-primary bg-primary/5 text-primary"
                             : "border-border"
                         }`}
                         onClick={() => setPaymentTerm(term)}

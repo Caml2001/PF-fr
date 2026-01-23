@@ -95,14 +95,23 @@ export default function HomeSection() {
             </CardContent>
           </Card>
           <div className="space-y-3 mt-2">
-            <Button 
-              className="w-full shadow-sm text-base py-6 bg-primary text-primary-foreground hover:bg-primary/90"
-              variant="secondary"
+            {/* Botón de solicitar préstamo - solo para usuarios con límite >= 50k */}
+            {creditInfo.limit >= 50000 && (
+              <Button
+                className="w-full shadow-sm text-base py-6 bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => navigate("/apply")}
+              >
+                Solicitar préstamo <ArrowRightIcon className="h-5 w-5 ml-2" />
+              </Button>
+            )}
+            <Button
+              className={`w-full shadow-sm text-base py-6 ${creditInfo.limit >= 50000 ? 'border border-primary/60 bg-primary/10 text-primary hover:bg-primary/15' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+              variant={creditInfo.limit >= 50000 ? "outline" : "secondary"}
               onClick={() => navigate("/partners")}
             >
               Ver comercios aliados <ArrowRightIcon className="h-5 w-5 ml-2" />
             </Button>
-            <Button 
+            <Button
               className="w-full text-base py-6 border border-primary/60 bg-primary/10 text-primary hover:bg-primary/15"
               variant="outline"
               onClick={() => navigate("/loans")}

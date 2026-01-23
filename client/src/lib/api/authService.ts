@@ -146,11 +146,9 @@ export const refreshAccessToken = async (): Promise<string | null> => {
       }
     });
 
-    // IMPORTANT: Confirm if the /auth/refresh-token endpoint expects the token
-    // to be sent as { "token": "..." } or if its request body structure also changed.
-    // Assuming it still expects { "token": refreshTokenValue }
+    // El endpoint /auth/refresh-token espera { supabaseRefreshToken: "..." }
     const response = await axiosInstance.post<RefreshTokenResponse>('/auth/refresh-token', {
-      token: refreshToken 
+      supabaseRefreshToken: refreshToken 
     });
 
     if (response.data.token) {

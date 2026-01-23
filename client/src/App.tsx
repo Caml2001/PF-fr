@@ -15,6 +15,7 @@ import { ContentContainer, PageContainer } from "./components/Layout";
 import { Router, Route, Switch, useLocation, useRoute, Redirect } from "wouter";
 import LoanPaymentSchedule from "./components/LoanPaymentSchedule";
 import AdvancePaymentForm from "./components/AdvancePaymentForm";
+import CreditApplicationForm from "./components/CreditApplicationForm";
 import ScrollToTop from "./components/ScrollToTop";
 
 // Para depuración
@@ -679,7 +680,7 @@ export default function App() {
               <SettingsSection />
             </Route>
             <Route path="/apply">
-              {() => <Redirect to="/partners" />}
+              <CreditApplicationForm onLogout={() => navigate('/home')} />
             </Route>
             <Route path="/partners">
               <PartnersSection />
